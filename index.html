@@ -7,25 +7,26 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⭐</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-<!-- ═══════════════════════════════════════════
-     FIREBASE — Cole sua configuração aqui
-     1. console.firebase.google.com
-     2. Crie projeto → Adicionar app Web
-     3. Copie o firebaseConfig e cole abaixo
-     4. Ative: Authentication > Email/Senha
-     5. Ative: Firestore Database (modo teste)
-═══════════════════════════════════════════ -->
 <script type="module">
-import { initializeApp }                                    from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { initializeApp }                                       from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword,
          signInWithEmailAndPassword, signOut,
-         onAuthStateChanged, updateProfile }                from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+         onAuthStateChanged, updateProfile }                   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, doc, setDoc, getDoc,
          getDocs, deleteDoc, updateDoc, onSnapshot,
-         query, orderBy, serverTimestamp, increment }       from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+         query, orderBy, serverTimestamp, increment,
+         writeBatch }                                          from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-/* ── CONFIGURE AQUI ─────────────────────────────── */
+/* ════════════════════════════════════════════
+   🔥 CONFIGURE SEU FIREBASE AQUI
+   1. console.firebase.google.com
+   2. Criar projeto → Adicionar app Web
+   3. Copiar firebaseConfig e colar abaixo
+   4. Ativar: Authentication → E-mail/Senha
+   5. Ativar: Firestore Database (modo teste)
+════════════════════════════════════════════ */
 const firebaseConfig = {
   apiKey:            "COLE_AQUI",
   authDomain:        "COLE_AQUI",
@@ -34,1238 +35,1740 @@ const firebaseConfig = {
   messagingSenderId: "COLE_AQUI",
   appId:             "COLE_AQUI"
 };
-/* ─────────────────────────────────────────────── */
 
-const DEMO = firebaseConfig.apiKey === "COLE_AQUI";
-
+const FB_OK = !firebaseConfig.apiKey.includes('COLE_AQUI');
 let app, auth, db;
-if (!DEMO) {
+if (FB_OK) {
   app  = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db   = getFirestore(app);
 }
 
-/* ═══════════ DEMO LOCAL STORAGE ═══════════ */
+/* ═══ LOCAL STORAGE (demo/fallback) ═══ */
 const LS = {
-  get: k => { try { return JSON.parse(localStorage.getItem('es_'+k)) } catch { return null } },
-  set: (k,v) => localStorage.setItem('es_'+k, JSON.stringify(v)),
-  del: k => localStorage.removeItem('es_'+k)
+  g: k => { try { return JSON.parse(localStorage.getItem('es_'+k)); } catch { return null; } },
+  s: (k,v) => localStorage.setItem('es_'+k, JSON.stringify(v)),
+  d: k => localStorage.removeItem('es_'+k)
 };
-let demoUser = null;
 
-/* ═══════════ STATE ═══════════ */
-let currentUser = null;
-let unsubTurmas = null, unsubAlunos = null;
-let turmas = [], alunos = [];
-let activeTurma = null;
-let editingTurmaId = null, editingAlunoId = null;
-let freqMode = false;
-let freqData = {};
+/* ═══ STATE ═══ */
+let USER = null;
+let DATA = {}; // turmas, grupos, alunos, config, recompensas, desafios, kahoot, metas, swot, w2h, porques
+let unsubFn = null;
+let activePage = 'dashboard';
+let activeTurmaId = null;
+let activeGrupoId = null;
+let charts = {};
 
-/* ═══════════ BOOT ═══════════ */
+/* ═══ BOOT ═══ */
 window.addEventListener('DOMContentLoaded', () => {
-  if (DEMO) {
-    showToast('⚠️ Configure o Firebase para salvar na nuvem', 'warn', 6000);
-    demoUser = LS.get('demo_user');
-    if (demoUser) bootApp(demoUser);
-    else showScreen('auth');
+  if (!FB_OK) {
+    showBanner('⚠️ Firebase não configurado — dados salvos localmente');
+    const u = LS.g('user');
+    if (u) startApp(u);
+    else showAuth();
   } else {
     onAuthStateChanged(auth, u => {
-      if (u) bootApp({ uid: u.uid, name: u.displayName || u.email.split('@')[0], email: u.email });
-      else showScreen('auth');
+      if (u) startApp({ uid: u.uid, nome: u.displayName || u.email.split('@')[0], email: u.email });
+      else showAuth();
     });
   }
 });
 
-/* ═══════════ AUTH ═══════════ */
-window.doRegister = async () => {
-  const name  = v('rName');
-  const email = v('rEmail');
-  const pw    = v('rPw');
-  const pw2   = v('rPw2');
-  clearErrors();
-  let ok = true;
-  if (!name)                    { setErr('rName','Nome obrigatório'); ok=false; }
-  if (!email || !email.includes('@')) { setErr('rEmail','E-mail inválido'); ok=false; }
-  if (pw.length < 6)            { setErr('rPw','Mínimo 6 caracteres'); ok=false; }
-  if (pw !== pw2)               { setErr('rPw2','Senhas não coincidem'); ok=false; }
-  if (!ok) return;
-  setBtnLoad('btnRegister', true);
-  try {
-    if (DEMO) {
-      const u = { uid: 'demo_'+Date.now(), name, email };
-      LS.set('demo_user', u);
-      bootApp(u);
-    } else {
-      const cred = await createUserWithEmailAndPassword(auth, email, pw);
-      await updateProfile(cred.user, { displayName: name });
-      // onAuthStateChanged vai chamar bootApp
-    }
-  } catch(e) {
-    const msgs = {
-      'auth/email-already-in-use': 'E-mail já cadastrado.',
-      'auth/invalid-email': 'E-mail inválido.',
-      'auth/weak-password': 'Senha muito fraca.',
-    };
-    showToast(msgs[e.code] || 'Erro: ' + e.message, 'error');
-  } finally { setBtnLoad('btnRegister', false); }
-};
-
+/* ═══ AUTH ═══ */
 window.doLogin = async () => {
-  const email = v('lEmail');
-  const pw    = v('lPw');
-  clearErrors();
-  let ok = true;
-  if (!email) { setErr('lEmail','E-mail obrigatório'); ok=false; }
-  if (!pw)    { setErr('lPw','Senha obrigatória'); ok=false; }
-  if (!ok) return;
-  setBtnLoad('btnLogin', true);
+  const email = gi('lEmail').value.trim();
+  const pw    = gi('lPw').value;
+  clearErrs();
+  if (!email) return setErr('lEmail','E-mail obrigatório');
+  if (!pw)    return setErr('lPw','Senha obrigatória');
+  setBL('btnLogin', true);
   try {
-    if (DEMO) {
-      const saved = LS.get('demo_user');
-      if (saved && saved.email === email) {
-        bootApp(saved);
-      } else {
-        showToast('Usuário não encontrado no modo demo.', 'error');
-      }
+    if (!FB_OK) {
+      const u = LS.g('user');
+      if (u && u.email === email) startApp(u);
+      else toast('Usuário não encontrado.','err');
     } else {
       await signInWithEmailAndPassword(auth, email, pw);
     }
   } catch(e) {
-    const msgs = {
-      'auth/user-not-found':  'Usuário não encontrado.',
-      'auth/wrong-password':  'Senha incorreta.',
-      'auth/invalid-credential': 'E-mail ou senha incorretos.',
-      'auth/too-many-requests': 'Muitas tentativas. Tente mais tarde.',
-    };
-    showToast(msgs[e.code] || 'Erro ao entrar.', 'error');
-  } finally { setBtnLoad('btnLogin', false); }
+    toast(fbErr(e),'err');
+  } finally { setBL('btnLogin', false); }
+};
+
+window.doRegister = async () => {
+  const nome  = gi('rNome').value.trim();
+  const email = gi('rEmail').value.trim();
+  const pw    = gi('rPw').value;
+  const pw2   = gi('rPw2').value;
+  clearErrs();
+  let ok = true;
+  if (!nome)             { setErr('rNome','Nome obrigatório'); ok=false; }
+  if (!email||!email.includes('@')) { setErr('rEmail','E-mail inválido'); ok=false; }
+  if (pw.length < 6)     { setErr('rPw','Mínimo 6 caracteres'); ok=false; }
+  if (pw !== pw2)        { setErr('rPw2','Senhas não coincidem'); ok=false; }
+  if (!ok) return;
+  setBL('btnReg', true);
+  try {
+    if (!FB_OK) {
+      const u = { uid:'demo_'+uid(), nome, email };
+      LS.s('user', u);
+      startApp(u);
+    } else {
+      const c = await createUserWithEmailAndPassword(auth, email, pw);
+      await updateProfile(c.user, { displayName: nome });
+    }
+  } catch(e) { toast(fbErr(e),'err'); }
+  finally { setBL('btnReg', false); }
 };
 
 window.doLogout = async () => {
-  if (unsubTurmas) unsubTurmas();
-  if (unsubAlunos) unsubAlunos();
-  turmas = []; alunos = []; activeTurma = null;
-  if (DEMO) { LS.del('demo_user'); demoUser = null; }
+  if (unsubFn) unsubFn();
+  USER = null; DATA = {};
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch {} });
+  charts = {};
+  if (!FB_OK) LS.d('user');
   else await signOut(auth);
-  showScreen('auth');
+  showAuth();
 };
 
-/* ═══════════ BOOT APP ═══════════ */
-function bootApp(user) {
-  currentUser = user;
-  document.getElementById('userNameDisplay').textContent = user.name || user.email;
-  showScreen('app');
-  listenTurmas();
+function fbErr(e) {
+  const m = {
+    'auth/email-already-in-use':'E-mail já cadastrado.',
+    'auth/invalid-email':'E-mail inválido.',
+    'auth/weak-password':'Senha fraca (mín. 6 caracteres).',
+    'auth/user-not-found':'Usuário não encontrado.',
+    'auth/wrong-password':'Senha incorreta.',
+    'auth/invalid-credential':'E-mail ou senha incorretos.',
+    'auth/too-many-requests':'Muitas tentativas. Aguarde.',
+  };
+  return m[e.code] || e.message || 'Erro desconhecido.';
 }
 
-/* ═══════════ FIRESTORE / DEMO PATHS ═══════════ */
-function uid2() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+/* ═══ START APP ═══ */
+function startApp(user) {
+  USER = user;
+  gi('uNome').textContent = user.nome;
+  gi('uAv').textContent   = initials(user.nome);
+  gi('authScreen').style.display = 'none';
+  gi('app').style.display        = 'flex';
+  loadData();
+}
 
-function turmasPath()       { return DEMO ? null : collection(db, 'users', currentUser.uid, 'turmas'); }
-function turmaDoc(id)       { return DEMO ? null : doc(db, 'users', currentUser.uid, 'turmas', id); }
-function alunosPath(tId)    { return DEMO ? null : collection(db, 'users', currentUser.uid, 'turmas', tId, 'alunos'); }
-function alunoDoc(tId, aId) { return DEMO ? null : doc(db, 'users', currentUser.uid, 'turmas', tId, 'alunos', aId); }
+/* ═══ DATA LAYER ═══ */
+function uPath(...segs) { return ['users', USER.uid, ...segs]; }
 
-/* ═══════════ DEMO DATA ═══════════ */
-function demoGetTurmas() { return LS.get('turmas_'+currentUser.uid) || []; }
-function demoSetTurmas(arr) { LS.set('turmas_'+currentUser.uid, arr); }
-function demoGetAlunos(tId) { return LS.get('alunos_'+currentUser.uid+'_'+tId) || []; }
-function demoSetAlunos(tId, arr) { LS.set('alunos_'+currentUser.uid+'_'+tId, arr); }
-
-/* ═══════════ TURMAS ═══════════ */
-function listenTurmas() {
-  if (DEMO) {
-    turmas = demoGetTurmas();
-    renderTurmasList();
-    if (activeTurma) {
-      activeTurma = turmas.find(t => t.id === activeTurma.id) || null;
-      if (activeTurma) listenAlunos(activeTurma.id);
-      else renderAlunosList();
-    }
+async function loadData() {
+  if (!FB_OK) {
+    DATA = LS.g('data_'+USER.uid) || defaultData();
+    renderAll();
     return;
   }
-  if (unsubTurmas) unsubTurmas();
-  unsubTurmas = onSnapshot(
-    query(turmasPath(), orderBy('criadoEm', 'asc')),
-    snap => {
-      turmas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderTurmasList();
-      if (activeTurma) {
-        activeTurma = turmas.find(t => t.id === activeTurma.id) || null;
-        if (!activeTurma) { alunos = []; renderAlunosList(); }
-      }
-    },
-    err => showToast('Erro ao carregar turmas.', 'error')
-  );
+  // Load all from Firestore
+  try {
+    const snap = await getDoc(doc(db, ...uPath('meta','main')));
+    DATA = snap.exists() ? { ...defaultData(), ...snap.data() } : defaultData();
+  } catch { DATA = defaultData(); }
+  renderAll();
+  // Real-time
+  unsubFn = onSnapshot(doc(db, ...uPath('meta','main')), snap => {
+    if (snap.exists()) {
+      DATA = { ...defaultData(), ...snap.data() };
+      renderAll();
+    }
+  });
 }
 
-window.saveTurma = async () => {
-  const nome = v('tNome').trim();
-  const ano  = v('tAno').trim();
-  if (!nome) { setErr('tNome','Nome obrigatório'); return; }
-  clearErrors();
-  setBtnLoad('btnSaveTurma', true);
+async function persist() {
+  if (!FB_OK) { LS.s('data_'+USER.uid, DATA); return; }
   try {
-    if (DEMO) {
-      const arr = demoGetTurmas();
-      if (editingTurmaId) {
-        const i = arr.findIndex(t => t.id === editingTurmaId);
-        if (i >= 0) arr[i] = { ...arr[i], nome, ano };
-      } else {
-        arr.push({ id: uid2(), nome, ano, criadoEm: Date.now() });
-      }
-      demoSetTurmas(arr);
-      listenTurmas();
-    } else {
-      if (editingTurmaId) {
-        await updateDoc(turmaDoc(editingTurmaId), { nome, ano });
-      } else {
-        const id = uid2();
-        await setDoc(turmaDoc(id), { nome, ano, criadoEm: serverTimestamp() });
-      }
-    }
-    closeModal('modalTurma');
-  } catch(e) { showToast('Erro ao salvar turma.', 'error'); }
-  finally { setBtnLoad('btnSaveTurma', false); }
+    await setDoc(doc(db, ...uPath('meta','main')), DATA);
+    setSyncOk();
+  } catch(e) { toast('Erro ao salvar na nuvem.','err'); }
+}
+
+function setSyncOk() {
+  const el = gi('syncDot');
+  if (el) { el.className = 'sync-dot ok'; gi('syncTxt').textContent = 'Salvo ☁️'; }
+  setTimeout(() => { if(el) { el.className='sync-dot'; gi('syncTxt').textContent='Online'; } }, 2500);
+}
+
+function defaultData() {
+  return {
+    config: {
+      nomePlat: 'EduStar', cor1: '#1a1916', cor2: '#C9953A',
+      presenca: 10, participacao: 5, atraso: -2, falta: -5, bonus100: 10,
+      kahootFreqMin: 75, metaEstrMes: 50
+    },
+    turmas: [], grupos: [], alunos: [],
+    recompensas: [], desafios: [], kahoot: [],
+    metas: [], swot: [], w2h: [], porques: []
+  };
+}
+
+/* ═══ UTILS ═══ */
+function uid()        { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function gi(id)       { return document.getElementById(id); }
+function gv(id)       { return gi(id)?.value||''; }
+function sv(id,v)     { const e=gi(id); if(e) e.value=v??''; }
+function esc(s)       { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function initials(n)  { return (n||'?').split(' ').slice(0,2).map(w=>(w[0]||'').toUpperCase()).join(''); }
+function today()      { return new Date().toISOString().slice(0,10); }
+function fmtDate(d)   { return d ? new Date(d).toLocaleDateString('pt-BR') : '—'; }
+function setErr(id,m) { const e=gi('err_'+id); if(e){e.textContent=m;e.style.display='block';} gi(id)?.classList.add('inp-err'); }
+function clearErrs()  { document.querySelectorAll('.err-msg').forEach(e=>{e.textContent='';e.style.display='none';}); document.querySelectorAll('.inp-err').forEach(e=>e.classList.remove('inp-err')); }
+function setBL(id,v)  { const b=gi(id); if(!b)return; b.disabled=v; b.dataset.orig=b.dataset.orig||b.textContent; b.textContent=v?'Aguarde…':b.dataset.orig; }
+function emptyHTML(ic,msg,sub) { return `<div class="empty-state"><div class="empty-ic">${ic}</div><p>${msg}</p>${sub?`<small>${sub}</small>`:''}</div>`; }
+
+let _tt;
+window.toast = function(msg, type='', dur=3200) {
+  const t = gi('toast'); if(!t)return;
+  t.textContent=msg; t.className='toast show '+(type||'');
+  clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),dur);
 };
 
-window.deleteTurma = async (id) => {
-  if (!confirm('Remover esta turma e todos os alunos?')) return;
-  try {
-    if (DEMO) {
-      const arr = demoGetTurmas().filter(t => t.id !== id);
-      demoSetTurmas(arr);
-      LS.del('alunos_'+currentUser.uid+'_'+id);
-      if (activeTurma?.id === id) { activeTurma = null; alunos = []; }
-      listenTurmas();
-    } else {
-      // Delete alunos subcollection first
-      const snap = await getDocs(alunosPath(id));
-      await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
-      await deleteDoc(turmaDoc(id));
-    }
-    if (activeTurma?.id === id) { activeTurma = null; alunos = []; renderAlunosList(); }
-  } catch(e) { showToast('Erro ao remover turma.', 'error'); }
+window.showBanner = function(msg) {
+  const b = gi('demoBanner'); if(!b)return;
+  b.textContent=msg; b.style.display='flex';
 };
 
-window.openEditTurma = (id) => {
-  const t = turmas.find(x => x.id === id);
-  if (!t) return;
-  editingTurmaId = id;
-  set('tNome', t.nome); set('tAno', t.ano || '');
-  document.getElementById('modalTurmaTitle').textContent = 'Editar turma';
-  openModal('modalTurma');
+/* ═══ MODAL ═══ */
+window.openM  = id => { clearErrs(); gi(id)?.classList.add('open'); };
+window.closeM = id => gi(id)?.classList.remove('open');
+document.addEventListener('click', e => { if(e.target.classList.contains('modal-overlay')) closeM(e.target.id); });
+document.addEventListener('keydown', e => { if(e.key==='Escape') document.querySelectorAll('.modal-overlay.open').forEach(m=>closeM(m.id)); });
+
+/* ═══ NAV ═══ */
+const PAGE_TITLES = {
+  dashboard:'Dashboard', turmas:'Turmas', grupos:'Grupos', alunos:'Alunos',
+  frequencia:'Frequência', estrelas:'⭐ Rota das Estrelas', desafios:'Desafios',
+  kahoot:'Kahoot', recompensas:'Recompensas', metas:'Metas',
+  swot:'Matriz SWOT', w2h:'5W2H', porques:'5 Porquês',
+  ranking:'Ranking', relatorios:'Relatórios', configuracoes:'Configurações'
 };
 
-window.openNewTurma = () => {
-  editingTurmaId = null;
-  set('tNome',''); set('tAno','');
-  clearErrors();
-  document.getElementById('modalTurmaTitle').textContent = 'Nova turma';
-  openModal('modalTurma');
+window.navTo = function(page) {
+  activePage = page;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.page===page));
+  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active', p.id==='pg-'+page));
+  gi('pageTitle').textContent = PAGE_TITLES[page]||page;
+  gi('sidebar').classList.remove('open');
+  renderPage(page);
 };
 
-window.selectTurma = (id) => {
-  activeTurma = turmas.find(t => t.id === id) || null;
-  freqMode = false;
-  freqData = {};
-  renderTurmasList();
-  if (activeTurma) listenAlunos(id);
-  else { alunos = []; renderAlunosList(); }
-};
+function renderAll() {
+  applyTheme();
+  gi('platNome').textContent = DATA.config?.nomePlat || 'EduStar';
+  renderPage(activePage);
+}
 
-/* ═══════════ ALUNOS ═══════════ */
-function listenAlunos(tId) {
-  if (DEMO) {
-    alunos = demoGetAlunos(tId);
-    renderAlunosList();
-    return;
+function renderPage(page) {
+  const map = {
+    dashboard: renderDashboard,
+    turmas: renderTurmas,
+    grupos: renderGrupos,
+    alunos: renderAlunos,
+    frequencia: renderFrequencia,
+    estrelas: renderEstrelas,
+    desafios: renderDesafios,
+    kahoot: renderKahoot,
+    recompensas: renderRecompensas,
+    metas: renderMetas,
+    swot: renderSwot,
+    w2h: renderW2H,
+    porques: renderPorques,
+    ranking: renderRanking,
+    configuracoes: renderConfig,
+    relatorios: renderRelatorios,
+  };
+  if (map[page]) map[page]();
+}
+
+/* ═══════════════════════════════════════════
+   DASHBOARD
+═══════════════════════════════════════════ */
+function renderDashboard() {
+  const totalEst = DATA.alunos.reduce((s,a)=>s+(a.estrelas||0),0);
+  const pres     = Object.values(DATA.alunos.reduce((acc,a)=>{acc[a.id]=(a.presencas||0);return acc},{})).reduce((s,v)=>s+v,0);
+  const faltas   = DATA.alunos.reduce((s,a)=>s+(a.faltas||0),0);
+  const total    = pres+faltas;
+  const freqPct  = total>0 ? Math.round((pres/total)*100) : 0;
+  gi('dTotalAlunos').textContent  = DATA.alunos.length;
+  gi('dTotalTurmas').textContent  = DATA.turmas.length;
+  gi('dTotalGrupos').textContent  = DATA.grupos.length;
+  gi('dFreqGeral').textContent    = freqPct+'%';
+  gi('dEstrelas').textContent     = totalEst;
+  gi('dRecomp').textContent       = DATA.recompensas.length;
+
+  // Ranking top5
+  const top5 = [...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0)).slice(0,5);
+  gi('dashRanking').innerHTML = top5.length ? top5.map((a,i)=>{
+    const medals=['🥇','🥈','🥉'];
+    return `<div class="rank-row">
+      <span class="rk-pos">${medals[i]||'#'+(i+1)}</span>
+      <span class="rk-nome">${esc(a.nome)}</span>
+      <span class="rk-pts">⭐ ${a.estrelas||0}</span>
+    </div>`;
+  }).join('') : emptyHTML('🏆','Nenhum aluno ainda');
+
+  // Charts
+  buildCharts();
+}
+
+function buildCharts() {
+  Chart.defaults.color = '#8A8680';
+  Chart.defaults.borderColor = '#E8E5DF';
+
+  // Grupos estrelas
+  const ctx1 = gi('cGrupos');
+  if (ctx1) {
+    if (charts.grupos) charts.grupos.destroy();
+    const gLabels = DATA.grupos.map(g=>g.nome);
+    const gVals   = DATA.grupos.map(g=>DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0));
+    charts.grupos = new Chart(ctx1, {
+      type:'bar',
+      data:{ labels:gLabels, datasets:[{ label:'Estrelas', data:gVals, backgroundColor:DATA.grupos.map(g=>g.cor||'#C9953A')+'BB', borderColor:DATA.grupos.map(g=>g.cor||'#C9953A'), borderWidth:2, borderRadius:6 }] },
+      options:{ responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{grid:{color:'#F1EEE8'}}, x:{grid:{display:false}} } }
+    });
   }
-  if (unsubAlunos) unsubAlunos();
-  unsubAlunos = onSnapshot(
-    query(alunosPath(tId), orderBy('nome', 'asc')),
-    snap => {
-      alunos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderAlunosList();
-    },
-    err => showToast('Erro ao carregar alunos.', 'error')
-  );
+
+  // Freq donut
+  const ctx2 = gi('cFreq');
+  if (ctx2) {
+    if (charts.freq) charts.freq.destroy();
+    const pres  = DATA.alunos.reduce((s,a)=>s+(a.presencas||0),0);
+    const falt  = DATA.alunos.reduce((s,a)=>s+(a.faltas||0),0);
+    charts.freq = new Chart(ctx2, {
+      type:'doughnut',
+      data:{ labels:['Presenças','Faltas'], datasets:[{ data:[pres||1,falt], backgroundColor:['#1B7B4A','#C0392B'], borderWidth:0 }] },
+      options:{ responsive:true, plugins:{ legend:{position:'bottom'} }, cutout:'70%' }
+    });
+  }
 }
 
-window.saveAluno = async () => {
-  if (!activeTurma) return;
-  const nome = v('aNome').trim();
-  if (!nome) { setErr('aNome','Nome obrigatório'); return; }
-  clearErrors();
-  setBtnLoad('btnSaveAluno', true);
-  try {
-    const tId = activeTurma.id;
-    if (DEMO) {
-      const arr = demoGetAlunos(tId);
-      if (editingAlunoId) {
-        const i = arr.findIndex(a => a.id === editingAlunoId);
-        if (i >= 0) arr[i] = { ...arr[i], nome };
-      } else {
-        arr.push({ id: uid2(), nome, estrelas: 0, presencas: 0, faltas: 0, criadoEm: Date.now() });
-      }
-      demoSetAlunos(tId, arr);
-      listenAlunos(tId);
-    } else {
-      if (editingAlunoId) {
-        await updateDoc(alunoDoc(tId, editingAlunoId), { nome });
-      } else {
-        const id = uid2();
-        await setDoc(alunoDoc(tId, id), {
-          nome, estrelas: 0, presencas: 0, faltas: 0, criadoEm: serverTimestamp()
-        });
-      }
-    }
-    closeModal('modalAluno');
-  } catch(e) { showToast('Erro ao salvar aluno.', 'error'); }
-  finally { setBtnLoad('btnSaveAluno', false); }
+/* ═══════════════════════════════════════════
+   TURMAS
+═══════════════════════════════════════════ */
+function renderTurmas() {
+  const el = gi('turmasList');
+  if (!DATA.turmas.length) { el.innerHTML = emptyHTML('🏫','Nenhuma turma','Clique em + Nova Turma'); return; }
+  el.innerHTML = DATA.turmas.map(t => {
+    const count = DATA.alunos.filter(a=>a.turmaId===t.id).length;
+    return `<div class="card-item">
+      <div class="ci-icon">🏫</div>
+      <div class="ci-body">
+        <div class="ci-title">${esc(t.nome)}</div>
+        <div class="ci-sub">${count} aluno${count!==1?'s':''} · ${t.ano||''}</div>
+      </div>
+      <div class="ci-actions">
+        <button class="ibtn" onclick="editTurma('${t.id}')">✏️</button>
+        <button class="ibtn red" onclick="delTurma('${t.id}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.openNewTurma = () => { sv('ftId',''); sv('ftNome',''); sv('ftAno',''); sv('ftCodigo',''); gi('mTurmaTitle').textContent='Nova Turma'; openM('mTurma'); };
+window.editTurma   = id => { const t=DATA.turmas.find(x=>x.id===id); if(!t)return; sv('ftId',id); sv('ftNome',t.nome); sv('ftAno',t.ano); sv('ftCodigo',t.codigo||''); gi('mTurmaTitle').textContent='Editar Turma'; openM('mTurma'); };
+window.saveTurma   = async () => {
+  const nome = gv('ftNome').trim();
+  if (!nome) return setErr('ftNome','Nome obrigatório');
+  const id = gv('ftId') || uid();
+  const obj = { id, nome, ano:gv('ftAno'), codigo:gv('ftCodigo') };
+  const idx = DATA.turmas.findIndex(t=>t.id===id);
+  if (idx>=0) DATA.turmas[idx]=obj; else DATA.turmas.push(obj);
+  await persist(); closeM('mTurma'); renderTurmas(); toast('Turma salva!','ok');
+};
+window.delTurma = async id => {
+  if (!confirm('Remover turma? Os alunos vinculados ficarão sem turma.')) return;
+  DATA.turmas = DATA.turmas.filter(t=>t.id!==id);
+  DATA.alunos.forEach(a=>{ if(a.turmaId===id) a.turmaId=''; });
+  await persist(); renderTurmas(); toast('Turma removida.','warn');
 };
 
-window.deleteAluno = async (id) => {
-  if (!activeTurma || !confirm('Remover este aluno?')) return;
-  try {
-    const tId = activeTurma.id;
-    if (DEMO) {
-      const arr = demoGetAlunos(tId).filter(a => a.id !== id);
-      demoSetAlunos(tId, arr);
-      listenAlunos(tId);
-    } else {
-      await deleteDoc(alunoDoc(tId, id));
-    }
-  } catch(e) { showToast('Erro ao remover aluno.', 'error'); }
+/* ═══════════════════════════════════════════
+   GRUPOS
+═══════════════════════════════════════════ */
+function renderGrupos() {
+  const el = gi('gruposList');
+  if (!DATA.grupos.length) { el.innerHTML = emptyHTML('🏆','Nenhum grupo','Clique em + Novo Grupo'); return; }
+  el.innerHTML = DATA.grupos.map(g => {
+    const membros = DATA.alunos.filter(a=>a.grupoId===g.id);
+    const total   = membros.reduce((s,a)=>s+(a.estrelas||0),0);
+    return `<div class="grupo-card" style="border-top:3px solid ${g.cor||'#C9953A'}">
+      <div class="gc-top">
+        <div class="gc-dot" style="background:${g.cor||'#C9953A'}"></div>
+        <span class="gc-nome">${esc(g.nome)}</span>
+        <div class="ci-actions">
+          <button class="ibtn" onclick="editGrupo('${g.id}')">✏️</button>
+          <button class="ibtn red" onclick="delGrupo('${g.id}')">🗑</button>
+        </div>
+      </div>
+      <div class="gc-pts">⭐ ${total}</div>
+      <div class="gc-sub">${membros.length} integrante${membros.length!==1?'s':''}</div>
+      <div class="gc-members">${membros.slice(0,6).map(a=>`<span class="chip">${esc(a.nome.split(' ')[0])}</span>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+window.openNewGrupo = () => { sv('fgId',''); sv('fgNome',''); sv('fgCor','#C9953A'); gi('mGrupoTitle').textContent='Novo Grupo'; openM('mGrupo'); };
+window.editGrupo    = id => { const g=DATA.grupos.find(x=>x.id===id); if(!g)return; sv('fgId',id); sv('fgNome',g.nome); sv('fgCor',g.cor||'#C9953A'); gi('mGrupoTitle').textContent='Editar Grupo'; openM('mGrupo'); };
+window.saveGrupo    = async () => {
+  const nome = gv('fgNome').trim();
+  if (!nome) return setErr('fgNome','Nome obrigatório');
+  const id = gv('fgId') || uid();
+  const obj = { id, nome, cor:gv('fgCor')||'#C9953A' };
+  const idx = DATA.grupos.findIndex(g=>g.id===id);
+  if (idx>=0) DATA.grupos[idx]=obj; else DATA.grupos.push(obj);
+  await persist(); closeM('mGrupo'); renderGrupos(); toast('Grupo salvo!','ok');
+};
+window.delGrupo = async id => {
+  if (!confirm('Remover grupo?')) return;
+  DATA.grupos = DATA.grupos.filter(g=>g.id!==id);
+  DATA.alunos.forEach(a=>{ if(a.grupoId===id) a.grupoId=''; });
+  await persist(); renderGrupos(); toast('Grupo removido.','warn');
 };
 
-window.openEditAluno = (id) => {
-  const a = alunos.find(x => x.id === id);
-  if (!a) return;
-  editingAlunoId = id;
-  set('aNome', a.nome);
-  clearErrors();
-  document.getElementById('modalAlunoTitle').textContent = 'Editar aluno';
-  openModal('modalAluno');
-};
+/* ═══════════════════════════════════════════
+   ALUNOS
+═══════════════════════════════════════════ */
+function renderAlunos() {
+  const q    = gv('searchAluno').toLowerCase();
+  const fT   = gv('fAlTurma');
+  const fG   = gv('fAlGrupo');
+  let list   = DATA.alunos;
+  if (q)  list = list.filter(a=>a.nome.toLowerCase().includes(q)||a.id.toLowerCase().includes(q));
+  if (fT) list = list.filter(a=>a.turmaId===fT);
+  if (fG) list = list.filter(a=>a.grupoId===fG);
+
+  // Fill selects
+  fillSel('fAlTurma',  DATA.turmas, 'Todas as turmas', fT);
+  fillSel('fAlGrupo',  DATA.grupos, 'Todos os grupos', fG);
+
+  const el = gi('alunosList');
+  if (!list.length) { el.innerHTML = emptyHTML('👥','Nenhum aluno encontrado'); return; }
+  el.innerHTML = list.map(a => {
+    const t   = DATA.turmas.find(x=>x.id===a.turmaId);
+    const g   = DATA.grupos.find(x=>x.id===a.grupoId);
+    const tot = (a.presencas||0)+(a.faltas||0);
+    const pct = tot>0 ? Math.round(((a.presencas||0)/tot)*100) : null;
+    return `<div class="aluno-row">
+      <div class="ar-av" ${g?`style="background:${g.cor}22;border-color:${g.cor}55;color:${g.cor}"`:''}>${initials(a.nome)}</div>
+      <div class="ar-body">
+        <div class="ar-nome">${esc(a.nome)} <span class="badge gray">${a.id}</span></div>
+        <div class="ar-meta">
+          ${t?`<span class="badge blue">${esc(t.nome)}</span>`:''}
+          ${g?`<span class="badge" style="background:${g.cor}22;color:${g.cor};border-color:${g.cor}44">${esc(g.nome)}</span>`:''}
+          ${pct!==null?`<span class="badge ${pct>=75?'green':pct>=50?'warn':'red'}">${pct}% presença</span>`:''}
+        </div>
+      </div>
+      <div class="ar-est">⭐ ${a.estrelas||0}</div>
+      <div class="ar-actions">
+        <button class="ibtn" onclick="editAluno('${a.id}')">✏️</button>
+        <button class="ibtn red" onclick="delAluno('${a.id}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
 
 window.openNewAluno = () => {
-  if (!activeTurma) { showToast('Selecione uma turma primeiro.', 'warn'); return; }
-  editingAlunoId = null;
-  set('aNome','');
-  clearErrors();
-  document.getElementById('modalAlunoTitle').textContent = 'Novo aluno';
-  openModal('modalAluno');
+  sv('faId',''); sv('faNome',''); sv('faEmail',''); sv('faTel','');
+  fillSel('faTurma', DATA.turmas, 'Sem turma', '');
+  fillSel('faGrupo', DATA.grupos, 'Sem grupo', '');
+  gi('mAlunoTitle').textContent='Novo Aluno'; openM('mAluno');
 };
-
-/* ═══════════ FREQUÊNCIA ═══════════ */
-window.toggleFreqMode = () => {
-  if (!activeTurma) { showToast('Selecione uma turma primeiro.', 'warn'); return; }
-  freqMode = !freqMode;
-  freqData = {};
-  alunos.forEach(a => { freqData[a.id] = 'presente'; });
-  renderAlunosList();
-  document.getElementById('freqBar').style.display = freqMode ? 'flex' : 'none';
+window.editAluno = id => {
+  const a = DATA.alunos.find(x=>x.id===id); if(!a)return;
+  sv('faId',id); sv('faNome',a.nome); sv('faEmail',a.email||''); sv('faTel',a.tel||'');
+  fillSel('faTurma', DATA.turmas, 'Sem turma', a.turmaId||'');
+  fillSel('faGrupo', DATA.grupos, 'Sem grupo', a.grupoId||'');
+  gi('mAlunoTitle').textContent='Editar Aluno'; openM('mAluno');
 };
-
-window.setFreq = (id, val) => {
-  freqData[id] = val;
-  // Update button styles
-  const row = document.getElementById('freqRow_'+id);
-  if (!row) return;
-  row.querySelectorAll('.fq-btn').forEach(b => b.classList.remove('active'));
-  const btn = row.querySelector('[data-val="'+val+'"]');
-  if (btn) btn.classList.add('active');
-};
-
-window.salvarFrequencia = async () => {
-  if (!activeTurma) return;
-  const tId = activeTurma.id;
-  const cfg = getConfig();
-  setBtnLoad('btnSalvarFreq', true);
-  try {
-    const presentes = Object.entries(freqData).filter(([,v]) => v==='presente').map(([k])=>k);
-    const todos100 = alunos.every(a => freqData[a.id] === 'presente');
-
-    if (DEMO) {
-      const arr = demoGetAlunos(tId).map(a => {
-        const status = freqData[a.id] || 'presente';
-        let delta = 0;
-        if (status === 'presente') {
-          delta = cfg.presenca;
-          if (todos100) delta += cfg.bonus100;
-        } else if (status === 'atraso') delta = cfg.atraso;
-        else delta = cfg.falta;
-        return {
-          ...a,
-          estrelas:  Math.max(0, (a.estrelas||0) + delta),
-          presencas: (a.presencas||0) + (status==='presente'?1:0),
-          faltas:    (a.faltas||0)    + (status==='ausente'?1:0),
-        };
-      });
-      demoSetAlunos(tId, arr);
-      listenAlunos(tId);
-    } else {
-      await Promise.all(alunos.map(async a => {
-        const status = freqData[a.id] || 'presente';
-        let delta = 0;
-        if (status === 'presente') {
-          delta = cfg.presenca;
-          if (todos100) delta += cfg.bonus100;
-        } else if (status === 'atraso') delta = cfg.atraso;
-        else delta = cfg.falta;
-        await updateDoc(alunoDoc(tId, a.id), {
-          estrelas:  increment(delta),
-          presencas: increment(status==='presente'?1:0),
-          faltas:    increment(status==='ausente'?1:0),
-        });
-      }));
-    }
-    freqMode = false;
-    freqData = {};
-    document.getElementById('freqBar').style.display = 'none';
-    renderAlunosList();
-    showToast('✅ Frequência salva e estrelas atualizadas!', 'success');
-  } catch(e) { showToast('Erro ao salvar frequência.', 'error'); }
-  finally { setBtnLoad('btnSalvarFreq', false); }
-};
-
-window.cancelFreq = () => {
-  freqMode = false; freqData = {};
-  document.getElementById('freqBar').style.display = 'none';
-  renderAlunosList();
-};
-
-/* ═══════════ ESTRELAS MANUAL ═══════════ */
-window.addEstrela = async (aId, delta) => {
-  if (!activeTurma) return;
-  const tId = activeTurma.id;
-  try {
-    if (DEMO) {
-      const arr = demoGetAlunos(tId).map(a =>
-        a.id===aId ? { ...a, estrelas: Math.max(0, (a.estrelas||0)+delta) } : a
-      );
-      demoSetAlunos(tId, arr);
-      listenAlunos(tId);
-    } else {
-      const a = alunos.find(x=>x.id===aId);
-      if ((a.estrelas||0)+delta < 0) return;
-      await updateDoc(alunoDoc(tId, aId), { estrelas: increment(delta) });
-    }
-  } catch(e) { showToast('Erro.', 'error'); }
-};
-
-/* ═══════════ CONFIG ═══════════ */
-function getConfig() {
-  return LS.get('config_'+currentUser.uid) || {
-    presenca: 5, atraso: -1, falta: -2, bonus100: 3
+window.saveAluno = async () => {
+  const nome = gv('faNome').trim();
+  if (!nome) return setErr('faNome','Nome obrigatório');
+  const id = gv('faId') || uid();
+  const existing = DATA.alunos.find(a=>a.id===id);
+  const obj = {
+    ...(existing||{ estrelas:0, presencas:0, faltas:0, historico:[] }),
+    id, nome, email:gv('faEmail'), tel:gv('faTel'),
+    turmaId:gv('faTurma'), grupoId:gv('faGrupo')
   };
+  const idx = DATA.alunos.findIndex(a=>a.id===id);
+  if (idx>=0) DATA.alunos[idx]=obj; else DATA.alunos.push(obj);
+  await persist(); closeM('mAluno'); renderAlunos(); toast('Aluno salvo!','ok');
+};
+window.delAluno = async id => {
+  if (!confirm('Remover aluno?')) return;
+  DATA.alunos = DATA.alunos.filter(a=>a.id!==id);
+  await persist(); renderAlunos(); toast('Aluno removido.','warn');
+};
+
+function fillSel(id, arr, placeholder, sel) {
+  const el = gi(id); if(!el)return;
+  el.innerHTML = `<option value="">${placeholder}</option>` +
+    arr.map(x=>`<option value="${x.id}"${x.id===sel?' selected':''}>${esc(x.nome)}</option>`).join('');
 }
-window.saveConfig = () => {
-  const cfg = {
-    presenca:  parseInt(v('cfgPresenca'))||5,
-    atraso:    parseInt(v('cfgAtraso'))||-1,
-    falta:     parseInt(v('cfgFalta'))||-2,
-    bonus100:  parseInt(v('cfgBonus100'))||3,
-  };
-  LS.set('config_'+currentUser.uid, cfg);
-  closeModal('modalConfig');
-  showToast('Configurações salvas!', 'success');
-};
-window.openConfig = () => {
-  const cfg = getConfig();
-  set('cfgPresenca', cfg.presenca);
-  set('cfgAtraso',   cfg.atraso);
-  set('cfgFalta',    cfg.falta);
-  set('cfgBonus100', cfg.bonus100);
-  openModal('modalConfig');
-};
 
-/* ═══════════ RENDER ═══════════ */
-function renderTurmasList() {
-  const el = document.getElementById('turmasList');
-  if (!turmas.length) {
-    el.innerHTML = `<div class="empty-side"><span>Nenhuma turma</span><small>Clique em + para criar</small></div>`;
-    return;
-  }
-  el.innerHTML = turmas.map(t => `
-    <div class="turma-item ${activeTurma?.id===t.id?'active':''}" onclick="selectTurma('${t.id}')">
-      <div class="turma-info">
-        <span class="turma-nome">${esc(t.nome)}</span>
-        ${t.ano?`<span class="turma-ano">${esc(t.ano)}</span>`:''}
-      </div>
-      <div class="turma-actions">
-        <button class="icon-btn" onclick="event.stopPropagation();openEditTurma('${t.id}')" title="Editar">✏️</button>
-        <button class="icon-btn danger" onclick="event.stopPropagation();deleteTurma('${t.id}')" title="Remover">🗑</button>
+/* ═══════════════════════════════════════════
+   FREQUÊNCIA
+═══════════════════════════════════════════ */
+let freqState = {}; // alunoId -> 'presente'|'atraso'|'ausente'
+
+function renderFrequencia() {
+  fillSel('freqTurma', DATA.turmas, 'Todas as turmas', activeTurmaId||'');
+  gi('freqData').value = gi('freqData').value || today();
+  renderFreqList();
+}
+
+function renderFreqList() {
+  const tId = gv('freqTurma');
+  activeTurmaId = tId;
+  let list = DATA.alunos;
+  if (tId) list = list.filter(a=>a.turmaId===tId);
+
+  const el = gi('freqList');
+  if (!list.length) { el.innerHTML = emptyHTML('📅','Nenhum aluno','Selecione uma turma ou crie alunos'); return; }
+
+  list.forEach(a=>{ if(!freqState[a.id]) freqState[a.id]='presente'; });
+
+  const pres  = list.filter(a=>freqState[a.id]==='presente').length;
+  const todos = list.every(a=>freqState[a.id]==='presente');
+
+  gi('freqSummary').innerHTML = `
+    <span>✅ <b>${pres}</b> presente${pres!==1?'s':''}</span>
+    <span>❌ <b>${list.filter(a=>freqState[a.id]==='ausente').length}</b> falta${list.filter(a=>freqState[a.id]==='ausente').length!==1?'s':''}</span>
+    <span>⏰ <b>${list.filter(a=>freqState[a.id]==='atraso').length}</b> atraso${list.filter(a=>freqState[a.id]==='atraso').length!==1?'s':''}</span>
+    ${todos?'<span class="badge green">🎯 Turma completa — bônus!</span>':''}
+  `;
+
+  el.innerHTML = list.map(a => `
+    <div class="freq-row" id="fr_${a.id}">
+      <div class="fr-nome">${esc(a.nome)}</div>
+      <div class="freq-btns">
+        <button class="fq-btn presente ${freqState[a.id]==='presente'?'active':''}" onclick="setFq('${a.id}','presente')">✅ Presente</button>
+        <button class="fq-btn atraso ${freqState[a.id]==='atraso'?'active':''}"   onclick="setFq('${a.id}','atraso')">⏰ Atraso</button>
+        <button class="fq-btn ausente ${freqState[a.id]==='ausente'?'active':''}"  onclick="setFq('${a.id}','ausente')">❌ Falta</button>
       </div>
     </div>`).join('');
 }
 
-function renderAlunosList() {
-  const el   = document.getElementById('alunosList');
-  const head = document.getElementById('alunosHeader');
+window.setFq = (id, val) => {
+  freqState[id]=val;
+  const row = gi('fr_'+id);
+  if (row) { row.querySelectorAll('.fq-btn').forEach(b=>b.classList.remove('active')); row.querySelector('[onclick*="\''+val+'\'"]')?.classList.add('active'); }
+  renderFreqList();
+};
 
-  if (!activeTurma) {
-    head.innerHTML = `<h2 class="panel-title">Selecione uma turma</h2>`;
-    el.innerHTML   = `<div class="empty-main"><div class="empty-icon">🏫</div><p>Escolha ou crie uma turma na barra lateral</p></div>`;
-    document.getElementById('btnNovoAluno').style.display = 'none';
-    document.getElementById('btnFreq').style.display = 'none';
-    return;
-  }
+window.salvarFreq = async () => {
+  const tId  = gv('freqTurma');
+  const data = gv('freqData') || today();
+  let list   = DATA.alunos;
+  if (tId) list = list.filter(a=>a.turmaId===tId);
+  if (!list.length) return toast('Nenhum aluno para registrar.','warn');
+  const cfg  = DATA.config;
+  const todos100 = list.every(a=>freqState[a.id]==='presente');
+  list.forEach(a=>{
+    const s = freqState[a.id]||'presente';
+    let delta = s==='presente' ? (cfg.presenca||10) : s==='atraso' ? (cfg.atraso||-2) : (cfg.falta||-5);
+    if (todos100 && s==='presente') delta += (cfg.bonus100||10);
+    a.estrelas  = Math.max(0,(a.estrelas||0)+delta);
+    a.presencas = (a.presencas||0)+(s==='presente'?1:0);
+    a.faltas    = (a.faltas||0)+(s==='ausente'?1:0);
+    if (!a.historico) a.historico=[];
+    a.historico.push({ data, status:s, delta });
+  });
+  freqState={};
+  await persist(); renderFrequencia(); toast('✅ Frequência salva e estrelas atualizadas!','ok');
+};
 
-  document.getElementById('btnNovoAluno').style.display = '';
-  document.getElementById('btnFreq').style.display = '';
+/* ═══════════════════════════════════════════
+   ESTRELAS (Rota das Estrelas)
+═══════════════════════════════════════════ */
+function renderEstrelas() {
+  // Grupos ranking
+  const gs = [...DATA.grupos].sort((a,b)=>{
+    const ea = DATA.alunos.filter(x=>x.grupoId===a.id).reduce((s,x)=>s+(x.estrelas||0),0);
+    const eb = DATA.alunos.filter(x=>x.grupoId===b.id).reduce((s,x)=>s+(x.estrelas||0),0);
+    return eb-ea;
+  });
+  gi('estGrupos').innerHTML = gs.length ? gs.map((g,i)=>{
+    const est = DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0);
+    return `<div class="grupo-card" style="border-top:3px solid ${g.cor||'#C9953A'}">
+      <div class="gc-top"><div class="gc-dot" style="background:${g.cor||'#C9953A'}"></div><span class="gc-nome">${esc(g.nome)}</span></div>
+      <div class="gc-pts">⭐ ${est}</div>
+      <div class="gc-sub">${['🥇','🥈','🥉'][i]||'#'+(i+1)} lugar</div>
+    </div>`;
+  }).join('') : emptyHTML('🏆','Nenhum grupo ainda');
 
-  // Ranking sort
-  const sorted = [...alunos].sort((a,b) => (b.estrelas||0)-(a.estrelas||0));
-  const max    = sorted[0]?.estrelas || 0;
-
-  head.innerHTML = `
-    <div class="turma-header-info">
-      <h2 class="panel-title">${esc(activeTurma.nome)}</h2>
-      <div class="turma-stats">
-        <span>👥 ${alunos.length} aluno${alunos.length!==1?'s':''}</span>
-        <span>⭐ ${alunos.reduce((s,a)=>s+(a.estrelas||0),0)} estrelas</span>
+  // Individual ranking
+  const sorted = [...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0));
+  const max    = sorted[0]?.estrelas||1;
+  gi('estIndiv').innerHTML = sorted.length ? sorted.map((a,i)=>{
+    const g = DATA.grupos.find(x=>x.id===a.grupoId);
+    return `<div class="aluno-row">
+      <span class="rk-pos-lg">${['🥇','🥈','🥉'][i]||'<span class="rk-n">'+(i+1)+'</span>'}</span>
+      <div class="ar-body">
+        <div class="ar-nome">${esc(a.nome)}</div>
+        <div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${Math.round(((a.estrelas||0)/max)*100)}%;background:${g?.cor||'#C9953A'}"></div></div></div>
+      </div>
+      <div class="ar-est">⭐ ${a.estrelas||0}</div>
+      <div class="ar-actions">
+        <button class="ibtn gold" onclick="addEst('${a.id}',1)" title="+1">+</button>
+        <button class="ibtn" onclick="addEst('${a.id}',-1)" title="-1">−</button>
       </div>
     </div>`;
-
-  if (!alunos.length) {
-    el.innerHTML = `<div class="empty-main"><div class="empty-icon">👥</div><p>Nenhum aluno nesta turma</p><button class="btn-primary sm" onclick="openNewAluno()">+ Adicionar aluno</button></div>`;
-    return;
-  }
-
-  el.innerHTML = sorted.map((a, i) => {
-    const pct   = max>0 ? Math.round(((a.estrelas||0)/max)*100) : 0;
-    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
-    const freq  = (a.presencas||0)+(a.faltas||0) > 0
-      ? Math.round(((a.presencas||0)/((a.presencas||0)+(a.faltas||0)))*100)
-      : null;
-
-    if (freqMode) {
-      const status = freqData[a.id] || 'presente';
-      return `
-        <div class="aluno-card freq-card" id="freqRow_${a.id}">
-          <div class="aluno-rank">${medal || '<span class="rank-num">'+(i+1)+'</span>'}</div>
-          <div class="aluno-nome-wrap">
-            <span class="aluno-nome">${esc(a.nome)}</span>
-          </div>
-          <div class="freq-btns">
-            <button class="fq-btn presente ${status==='presente'?'active':''}" data-val="presente" onclick="setFreq('${a.id}','presente')">✅ Presente</button>
-            <button class="fq-btn atraso  ${status==='atraso'?'active':''}"   data-val="atraso"   onclick="setFreq('${a.id}','atraso')">⏰ Atraso</button>
-            <button class="fq-btn ausente ${status==='ausente'?'active':''}"  data-val="ausente"  onclick="setFreq('${a.id}','ausente')">❌ Falta</button>
-          </div>
-        </div>`;
-    }
-
-    return `
-      <div class="aluno-card">
-        <div class="aluno-rank">${medal || '<span class="rank-num">'+(i+1)+'</span>'}</div>
-        <div class="aluno-body">
-          <div class="aluno-top">
-            <span class="aluno-nome">${esc(a.nome)}</span>
-            <div class="aluno-meta">
-              ${freq!==null?`<span class="freq-badge ${freq>=75?'good':freq>=50?'ok':'bad'}">${freq}% presença</span>`:''}
-              <span class="est-count">⭐ ${a.estrelas||0}</span>
-            </div>
-          </div>
-          <div class="aluno-bar-wrap">
-            <div class="aluno-bar"><div class="aluno-bar-fill" style="width:${pct}%"></div></div>
-          </div>
-        </div>
-        <div class="aluno-actions">
-          <button class="star-btn minus" onclick="addEstrela('${a.id}',-1)" title="Remover estrela">−</button>
-          <button class="star-btn plus"  onclick="addEstrela('${a.id}',1)"  title="Adicionar estrela">+</button>
-          <button class="icon-btn" onclick="openEditAluno('${a.id}')" title="Editar">✏️</button>
-          <button class="icon-btn danger" onclick="deleteAluno('${a.id}')" title="Remover">🗑</button>
-        </div>
-      </div>`;
-  }).join('');
+  }).join('') : emptyHTML('⭐','Nenhum aluno ainda');
 }
 
-/* ═══════════ UTILS ═══════════ */
-function v(id)         { return document.getElementById(id)?.value || ''; }
-function set(id, val)  { const el=document.getElementById(id); if(el) el.value=val||''; }
-function esc(s)        { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function setErr(id, msg) {
-  const el = document.getElementById('err_'+id);
-  if (el) { el.textContent = msg; el.style.display='block'; }
-  document.getElementById(id)?.classList.add('input-error');
-}
-function clearErrors() {
-  document.querySelectorAll('.err-msg').forEach(e => { e.textContent=''; e.style.display='none'; });
-  document.querySelectorAll('.input-error').forEach(e => e.classList.remove('input-error'));
-}
-function setBtnLoad(id, loading) {
-  const btn = document.getElementById(id);
-  if (!btn) return;
-  btn.disabled = loading;
-  btn.dataset.orig = btn.dataset.orig || btn.textContent;
-  btn.textContent = loading ? 'Aguarde…' : btn.dataset.orig;
-}
-function showScreen(s) {
-  document.getElementById('authScreen').style.display = s==='auth' ? 'flex' : 'none';
-  document.getElementById('appScreen').style.display  = s==='app'  ? 'flex' : 'none';
-}
-function openModal(id)  { document.getElementById(id).classList.add('open'); clearErrors(); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-window.closeModal = closeModal;
-document.addEventListener('click', e => {
-  if (e.target.classList.contains('modal-overlay')) closeModal(e.target.id);
-});
-document.addEventListener('keydown', e => {
-  if (e.key==='Escape') document.querySelectorAll('.modal-overlay.open').forEach(m=>closeModal(m.id));
-});
-
-let _toastTimer;
-function showToast(msg, type='info', dur=3000) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show ' + type;
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(()=>t.classList.remove('show'), dur);
-}
-window.showToast = showToast;
-
-// Tab switch
-window.switchTab = (tab) => {
-  document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.auth-panel').forEach(p=>p.style.display='none');
-  document.querySelector(`.auth-tab[data-tab="${tab}"]`).classList.add('active');
-  document.getElementById('panel_'+tab).style.display='block';
-  clearErrors();
+window.addEst = async (id, delta) => {
+  const a = DATA.alunos.find(x=>x.id===id); if(!a)return;
+  a.estrelas = Math.max(0,(a.estrelas||0)+delta);
+  if (!a.historico) a.historico=[];
+  a.historico.push({ data:today(), status:'manual', delta });
+  await persist(); renderEstrelas(); toast(delta>0?'⭐ Estrela adicionada!':'Estrela removida.', delta>0?'ok':'warn');
 };
-// Enter key on forms
-document.addEventListener('keydown', e => {
-  if (e.key==='Enter') {
-    if (document.getElementById('panel_login')?.style.display!=='none' && !document.querySelector('.modal-overlay.open')) doLogin();
+
+/* ═══════════════════════════════════════════
+   DESAFIOS
+═══════════════════════════════════════════ */
+function renderDesafios() {
+  fillSel('desafTurma', DATA.turmas, 'Todas as turmas', '');
+  gi('desafiosList').innerHTML = DATA.desafios.length
+    ? DATA.desafios.map(d=>`
+        <div class="card-item">
+          <div class="ci-icon">🎯</div>
+          <div class="ci-body">
+            <div class="ci-title">${esc(d.nome)}</div>
+            <div class="ci-sub">+${d.pts||0} estrelas · ${d.descricao||''}</div>
+          </div>
+          <div class="ci-actions">
+            <button class="ibtn gold" onclick="registrarDesafio('${d.id}')">✅ Registrar</button>
+            <button class="ibtn" onclick="editDesafio('${d.id}')">✏️</button>
+            <button class="ibtn red" onclick="delDesafio('${d.id}')">🗑</button>
+          </div>
+        </div>`).join('')
+    : emptyHTML('🎯','Nenhum desafio','Crie desafios para motivar os alunos');
+}
+
+window.openNewDesafio = () => { sv('fdId',''); sv('fdNome',''); sv('fdDesc',''); sv('fdPts','5'); gi('mDesafioTitle').textContent='Novo Desafio'; openM('mDesafio'); };
+window.editDesafio    = id => { const d=DATA.desafios.find(x=>x.id===id); if(!d)return; sv('fdId',id); sv('fdNome',d.nome); sv('fdDesc',d.descricao||''); sv('fdPts',d.pts||0); gi('mDesafioTitle').textContent='Editar Desafio'; openM('mDesafio'); };
+window.saveDesafio    = async () => {
+  const nome = gv('fdNome').trim();
+  if (!nome) return setErr('fdNome','Nome obrigatório');
+  const id = gv('fdId')||uid();
+  const obj = { id, nome, descricao:gv('fdDesc'), pts:parseInt(gv('fdPts'))||5 };
+  const idx = DATA.desafios.findIndex(x=>x.id===id);
+  if (idx>=0) DATA.desafios[idx]=obj; else DATA.desafios.push(obj);
+  await persist(); closeM('mDesafio'); renderDesafios(); toast('Desafio salvo!','ok');
+};
+window.delDesafio = async id => {
+  if (!confirm('Remover desafio?')) return;
+  DATA.desafios = DATA.desafios.filter(d=>d.id!==id);
+  await persist(); renderDesafios();
+};
+window.registrarDesafio = id => {
+  const d = DATA.desafios.find(x=>x.id===id); if(!d)return;
+  sv('frDesafioId',id);
+  gi('mRegDesafioNome').textContent = d.nome;
+  fillSel('frDesafioAluno', DATA.alunos, 'Selecione o aluno', '');
+  openM('mRegDesafio');
+};
+window.confirmarDesafio = async () => {
+  const did  = gv('frDesafioId');
+  const aid  = gv('frDesafioAluno');
+  const d    = DATA.desafios.find(x=>x.id===did);
+  const a    = DATA.alunos.find(x=>x.id===aid);
+  if (!d||!a) return toast('Selecione um aluno.','warn');
+  a.estrelas = (a.estrelas||0)+d.pts;
+  if (!a.historico) a.historico=[];
+  a.historico.push({ data:today(), status:'desafio:'+d.nome, delta:d.pts });
+  await persist(); closeM('mRegDesafio'); toast(`⭐ +${d.pts} para ${a.nome}!`,'ok');
+};
+
+/* ═══════════════════════════════════════════
+   KAHOOT
+═══════════════════════════════════════════ */
+function renderKahoot() {
+  const minFreq = DATA.config.kahootFreqMin||75;
+  const el = gi('kahootList');
+  if (!DATA.kahoot.length) { el.innerHTML = emptyHTML('🎮','Nenhum resultado','Registre resultados do Kahoot'); return; }
+  const sorted = [...DATA.kahoot].sort((a,b)=>new Date(b.data)-new Date(a.data));
+  el.innerHTML = `<table class="data-table">
+    <thead><tr><th>#</th><th>Aluno</th><th>Posição</th><th>Freq%</th><th>Data</th><th>Prêmio</th><th></th></tr></thead>
+    <tbody>${sorted.map((k,i)=>{
+      const elegivel = (k.freq||0)>=minFreq;
+      const premios  = {1:'🍫 Barra de chocolate',2:'🍬🍬 2 bombons',3:'🍬 1 bombom'};
+      return `<tr>
+        <td>${i+1}</td>
+        <td>${esc(k.nomeAluno)}</td>
+        <td>${['🥇 1º','🥈 2º','🥉 3º'][k.pos-1]||k.pos+'º'}</td>
+        <td><span class="badge ${(k.freq||0)>=minFreq?'green':'red'}">${k.freq||0}%</span></td>
+        <td>${fmtDate(k.data)}</td>
+        <td>${elegivel ? (premios[k.pos]||'—') : '<span style="color:var(--t3)">Não elegível</span>'}</td>
+        <td><button class="ibtn red" onclick="delKahoot('${k.id}')">🗑</button></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+window.openNewKahoot = () => {
+  fillSel('fkAluno', DATA.alunos, 'Selecione o aluno', '');
+  sv('fkPos','1'); sv('fkFreq',''); sv('fkData',today());
+  openM('mKahoot');
+};
+window.saveKahoot = async () => {
+  const aid = gv('fkAluno');
+  const a   = DATA.alunos.find(x=>x.id===aid);
+  if (!a) return toast('Selecione um aluno.','warn');
+  DATA.kahoot.push({ id:uid(), alunoId:aid, nomeAluno:a.nome, pos:parseInt(gv('fkPos'))||1, freq:parseInt(gv('fkFreq'))||0, data:gv('fkData')||today() });
+  await persist(); closeM('mKahoot'); renderKahoot(); toast('Resultado registrado!','ok');
+};
+window.delKahoot = async id => {
+  DATA.kahoot = DATA.kahoot.filter(k=>k.id!==id);
+  await persist(); renderKahoot();
+};
+
+/* ═══════════════════════════════════════════
+   RECOMPENSAS
+═══════════════════════════════════════════ */
+function renderRecompensas() {
+  const el = gi('recompList');
+  if (!DATA.recompensas.length) { el.innerHTML = emptyHTML('🎁','Nenhuma recompensa','Crie recompensas para motivar'); return; }
+  el.innerHTML = DATA.recompensas.map(r=>`
+    <div class="card-item">
+      <div class="ci-icon">🎁</div>
+      <div class="ci-body">
+        <div class="ci-title">${esc(r.nome)}</div>
+        <div class="ci-sub">⭐ ${r.estrelas||0} necessárias · Estoque: ${r.estoque??'∞'}</div>
+        ${r.descricao?`<div class="ci-desc">${esc(r.descricao)}</div>`:''}
+      </div>
+      <div class="ci-actions">
+        <button class="ibtn" onclick="editRecomp('${r.id}')">✏️</button>
+        <button class="ibtn red" onclick="delRecomp('${r.id}')">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+window.openNewRecomp = () => { sv('frId',''); sv('frNome',''); sv('frDesc',''); sv('frEst',''); sv('frEstq',''); gi('mRecompTitle').textContent='Nova Recompensa'; openM('mRecomp'); };
+window.editRecomp    = id => { const r=DATA.recompensas.find(x=>x.id===id); if(!r)return; sv('frId',id); sv('frNome',r.nome); sv('frDesc',r.descricao||''); sv('frEst',r.estrelas||''); sv('frEstq',r.estoque??''); gi('mRecompTitle').textContent='Editar Recompensa'; openM('mRecomp'); };
+window.saveRecomp    = async () => {
+  const nome = gv('frNome').trim();
+  if (!nome) return setErr('frNome','Nome obrigatório');
+  const id   = gv('frId')||uid();
+  const estq = gv('frEstq');
+  const obj  = { id, nome, descricao:gv('frDesc'), estrelas:parseInt(gv('frEst'))||0, estoque:estq===''?null:parseInt(estq) };
+  const idx  = DATA.recompensas.findIndex(x=>x.id===id);
+  if (idx>=0) DATA.recompensas[idx]=obj; else DATA.recompensas.push(obj);
+  await persist(); closeM('mRecomp'); renderRecompensas(); toast('Recompensa salva!','ok');
+};
+window.delRecomp = async id => {
+  if (!confirm('Remover?')) return;
+  DATA.recompensas = DATA.recompensas.filter(r=>r.id!==id);
+  await persist(); renderRecompensas();
+};
+
+/* ═══════════════════════════════════════════
+   METAS
+═══════════════════════════════════════════ */
+function renderMetas() {
+  const el = gi('metasList');
+  if (!DATA.metas.length) { el.innerHTML = emptyHTML('🎯','Nenhuma meta','Defina metas para a turma'); return; }
+  el.innerHTML = `<table class="data-table">
+    <thead><tr><th>Meta</th><th>Responsável</th><th>Prazo</th><th>Status</th><th>Progresso</th><th></th></tr></thead>
+    <tbody>${DATA.metas.map(m=>`<tr>
+      <td><b>${esc(m.nome)}</b></td>
+      <td>${esc(m.resp||'—')}</td>
+      <td>${fmtDate(m.prazo)}</td>
+      <td><span class="badge ${m.status==='concluida'?'green':m.status==='andamento'?'warn':'gray'}">${{pendente:'Pendente',andamento:'Em andamento',concluida:'Concluída'}[m.status]||m.status}</span></td>
+      <td><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${m.prog||0}%"></div></div><span class="prog-lbl">${m.prog||0}%</span></div></td>
+      <td><button class="ibtn" onclick="editMeta('${m.id}')">✏️</button><button class="ibtn red" onclick="delMeta('${m.id}')">🗑</button></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+window.openNewMeta = () => { sv('fmId',''); sv('fmNome',''); sv('fmResp',''); sv('fmPrazo',''); sv('fmStatus','pendente'); sv('fmProg','0'); sv('fmObs',''); gi('mMetaTitle').textContent='Nova Meta'; openM('mMeta'); };
+window.editMeta    = id => { const m=DATA.metas.find(x=>x.id===id); if(!m)return; sv('fmId',id); sv('fmNome',m.nome); sv('fmResp',m.resp||''); sv('fmPrazo',m.prazo||''); sv('fmStatus',m.status||'pendente'); sv('fmProg',m.prog||0); sv('fmObs',m.obs||''); gi('mMetaTitle').textContent='Editar Meta'; openM('mMeta'); };
+window.saveMeta    = async () => {
+  const nome = gv('fmNome').trim();
+  if (!nome) return setErr('fmNome','Nome obrigatório');
+  const id   = gv('fmId')||uid();
+  const obj  = { id, nome, resp:gv('fmResp'), prazo:gv('fmPrazo'), status:gv('fmStatus'), prog:parseInt(gv('fmProg'))||0, obs:gv('fmObs') };
+  const idx  = DATA.metas.findIndex(x=>x.id===id);
+  if (idx>=0) DATA.metas[idx]=obj; else DATA.metas.push(obj);
+  await persist(); closeM('mMeta'); renderMetas(); toast('Meta salva!','ok');
+};
+window.delMeta = async id => { if (!confirm('Remover?'))return; DATA.metas=DATA.metas.filter(m=>m.id!==id); await persist(); renderMetas(); };
+
+/* ═══════════════════════════════════════════
+   SWOT
+═══════════════════════════════════════════ */
+function renderSwot() {
+  ['S','W','O','T'].forEach(q=>{
+    gi('swot_'+q).innerHTML = DATA.swot.filter(c=>c.q===q).map(c=>`
+      <div class="swot-item">
+        <span>${esc(c.txt)}</span>
+        <button class="ibtn red sm" onclick="delSwot('${c.id}')">✕</button>
+      </div>`).join('') || `<p class="swot-empty">Clique em + para adicionar</p>`;
+  });
+}
+window.openSwot = q => { sv('fsQ',q); sv('fsTxt',''); openM('mSwot'); };
+window.saveSwot = async () => {
+  const txt=gv('fsTxt').trim(); if (!txt)return setErr('fsTxt','Texto obrigatório');
+  DATA.swot.push({ id:uid(), q:gv('fsQ'), txt });
+  await persist(); closeM('mSwot'); renderSwot(); toast('Item adicionado!','ok');
+};
+window.delSwot = async id => { DATA.swot=DATA.swot.filter(c=>c.id!==id); await persist(); renderSwot(); };
+
+/* ═══════════════════════════════════════════
+   5W2H
+═══════════════════════════════════════════ */
+function renderW2H() {
+  const q   = gv('searchW2H').toLowerCase();
+  const fst = gv('filterW2H');
+  let list  = DATA.w2h;
+  if (q)   list = list.filter(a=>(a.what||'').toLowerCase().includes(q)||(a.who||'').toLowerCase().includes(q));
+  if (fst) list = list.filter(a=>(fst==='done'?a.done:!a.done));
+  const done = DATA.w2h.filter(x=>x.done).length;
+  const pct  = DATA.w2h.length ? Math.round((done/DATA.w2h.length)*100) : 0;
+  gi('w2hProg').style.width = pct+'%';
+  gi('w2hProgLbl').textContent = `${done}/${DATA.w2h.length} (${pct}%)`;
+
+  gi('w2hList').innerHTML = list.length ? list.map(a=>`
+    <div class="w2h-card ${a.done?'done':''}">
+      <div class="w2h-head">
+        <span class="w2h-title">${esc(a.what||'Sem título')}</span>
+        <button class="ibtn sm" onclick="togW2H('${a.id}')">${a.done?'↩ Reabrir':'✅ Concluir'}</button>
+        <button class="ibtn sm" onclick="editW2H('${a.id}')">✏️</button>
+        <button class="ibtn sm red" onclick="delW2H('${a.id}')">🗑</button>
+      </div>
+      <div class="w2h-tags">
+        ${[['why','Por quê'],['who','Quem'],['where','Onde'],['when','Quando'],['how','Como'],['howmuch','Custo']].filter(([k])=>a[k]).map(([k,l])=>`<span class="w2h-tag"><b>${l}:</b> ${esc(a[k])}</span>`).join('')}
+      </div>
+    </div>`) .join('') : emptyHTML('📋','Nenhuma ação');
+}
+window.openNewW2H = () => { ['fwId','fwWhat','fwWhy','fwWho','fwWhere','fwWhen','fwHow','fwHM'].forEach(id=>sv(id,'')); openM('mW2H'); };
+window.editW2H    = id => {
+  const a=DATA.w2h.find(x=>x.id===id); if(!a)return;
+  sv('fwId',id); sv('fwWhat',a.what||''); sv('fwWhy',a.why||''); sv('fwWho',a.who||'');
+  sv('fwWhere',a.where||''); sv('fwWhen',a.when||''); sv('fwHow',a.how||''); sv('fwHM',a.howmuch||'');
+  openM('mW2H');
+};
+window.saveW2H = async () => {
+  const what=gv('fwWhat').trim(); if (!what)return setErr('fwWhat','O "O quê?" é obrigatório');
+  const id=gv('fwId')||uid();
+  const obj={ id, what, why:gv('fwWhy'), who:gv('fwWho'), where:gv('fwWhere'), when:gv('fwWhen'), how:gv('fwHow'), howmuch:gv('fwHM'), done:false };
+  const idx=DATA.w2h.findIndex(x=>x.id===id);
+  if (idx>=0) { const ex=DATA.w2h[idx]; DATA.w2h[idx]={...ex,...obj,done:ex.done}; } else DATA.w2h.push(obj);
+  await persist(); closeM('mW2H'); renderW2H(); toast('Ação salva!','ok');
+};
+window.delW2H = async id => { DATA.w2h=DATA.w2h.filter(x=>x.id!==id); await persist(); renderW2H(); };
+window.togW2H = async id => { const a=DATA.w2h.find(x=>x.id===id); if(a){a.done=!a.done; await persist(); renderW2H();} };
+
+/* ═══════════════════════════════════════════
+   5 PORQUÊS
+═══════════════════════════════════════════ */
+function renderPorques() {
+  gi('porquesList').innerHTML = DATA.porques.length ? DATA.porques.map(p=>`
+    <div class="p5-card">
+      <div class="p5-head">
+        <div class="p5-prob">🔍 ${esc(p.prob)}</div>
+        <button class="ibtn sm red" onclick="delPorque('${p.id}')">🗑</button>
+      </div>
+      <ol class="p5-list">${[p.p1,p.p2,p.p3,p.p4,p.p5].filter(Boolean).map(x=>`<li>${esc(x)}</li>`).join('')}</ol>
+      ${p.causa?`<div class="p5-causa">✅ Causa raiz: ${esc(p.causa)}</div>`:''}
+    </div>`).join('') : emptyHTML('🔍','Nenhuma análise','Investigue causas raiz com os 5 Porquês');
+}
+window.openNewPorque = () => { ['fpId','fpProb','fp1','fp2','fp3','fp4','fp5','fpCausa'].forEach(id=>sv(id,'')); openM('mPorque'); };
+window.savePorque = async () => {
+  const prob=gv('fpProb').trim(); if (!prob)return setErr('fpProb','Problema obrigatório');
+  const id=gv('fpId')||uid();
+  const obj={ id, prob, p1:gv('fp1'), p2:gv('fp2'), p3:gv('fp3'), p4:gv('fp4'), p5:gv('fp5'), causa:gv('fpCausa') };
+  const idx=DATA.porques.findIndex(x=>x.id===id); if(idx>=0) DATA.porques[idx]=obj; else DATA.porques.push(obj);
+  await persist(); closeM('mPorque'); renderPorques(); toast('Análise salva!','ok');
+};
+window.delPorque = async id => { if(!confirm('Remover?'))return; DATA.porques=DATA.porques.filter(x=>x.id!==id); await persist(); renderPorques(); };
+
+/* ═══════════════════════════════════════════
+   RANKING
+═══════════════════════════════════════════ */
+function renderRanking() {
+  // Individual
+  const sorted = [...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0));
+  gi('rankIndiv').innerHTML = sorted.length ? `<table class="data-table">
+    <thead><tr><th>#</th><th>Aluno</th><th>Turma</th><th>Grupo</th><th>⭐</th><th>Presença%</th></tr></thead>
+    <tbody>${sorted.map((a,i)=>{
+      const t=DATA.turmas.find(x=>x.id===a.turmaId); const g=DATA.grupos.find(x=>x.id===a.grupoId);
+      const tot=(a.presencas||0)+(a.faltas||0); const pct=tot>0?Math.round(((a.presencas||0)/tot)*100):null;
+      return `<tr>
+        <td><b>${['🥇','🥈','🥉'][i]||i+1}</b></td>
+        <td>${esc(a.nome)}</td>
+        <td>${t?esc(t.nome):'—'}</td>
+        <td>${g?esc(g.nome):'—'}</td>
+        <td><b style="color:var(--gold)">⭐ ${a.estrelas||0}</b></td>
+        <td>${pct!==null?`<span class="badge ${pct>=75?'green':pct>=50?'warn':'red'}">${pct}%</span>`:'—'}</td>
+      </tr>`;
+    }).join('')}</tbody></table>` : emptyHTML('🏆','Nenhum aluno ainda');
+
+  // Grupos
+  const gs = DATA.grupos.map(g=>({...g, est:DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0)})).sort((a,b)=>b.est-a.est);
+  gi('rankGrupos').innerHTML = gs.length ? gs.map((g,i)=>`
+    <div class="rank-row">
+      <span class="rk-pos">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span>
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${g.cor||'#ccc'};margin-right:6px"></span>
+      <span class="rk-nome">${esc(g.nome)}</span>
+      <span class="rk-pts">⭐ ${g.est}</span>
+    </div>`).join('') : emptyHTML('🏆','Nenhum grupo');
+}
+
+/* ═══════════════════════════════════════════
+   CONFIGURAÇÕES
+═══════════════════════════════════════════ */
+function renderConfig() {
+  const c = DATA.config||{};
+  sv('cfgNomePlat',  c.nomePlat||'EduStar');
+  sv('cfgCor1',      c.cor1||'#1a1916');
+  sv('cfgCor2',      c.cor2||'#C9953A');
+  sv('cfgPresenca',  c.presenca??10);
+  sv('cfgPartic',    c.participacao??5);
+  sv('cfgAtraso',    c.atraso??-2);
+  sv('cfgFalta',     c.falta??-5);
+  sv('cfgBonus100',  c.bonus100??10);
+  sv('cfgKFreq',     c.kahootFreqMin??75);
+  sv('cfgMetaEst',   c.metaEstrMes??50);
+}
+
+window.saveConfig = async () => {
+  DATA.config = {
+    nomePlat:     gv('cfgNomePlat')||'EduStar',
+    cor1:         gv('cfgCor1')||'#1a1916',
+    cor2:         gv('cfgCor2')||'#C9953A',
+    presenca:     parseInt(gv('cfgPresenca'))||10,
+    participacao: parseInt(gv('cfgPartic'))||5,
+    atraso:       parseInt(gv('cfgAtraso'))||-2,
+    falta:        parseInt(gv('cfgFalta'))||-5,
+    bonus100:     parseInt(gv('cfgBonus100'))||10,
+    kahootFreqMin:parseInt(gv('cfgKFreq'))||75,
+    metaEstrMes:  parseInt(gv('cfgMetaEst'))||50,
+  };
+  await persist(); applyTheme(); toast('✅ Configurações salvas!','ok');
+};
+
+function applyTheme() {
+  const c = DATA.config||{};
+  if (c.cor2) document.documentElement.style.setProperty('--gold', c.cor2);
+  if (c.nomePlat) { document.querySelectorAll('.plat-nome').forEach(e=>e.textContent=c.nomePlat); document.title=c.nomePlat; }
+}
+
+/* ═══════════════════════════════════════════
+   RELATÓRIOS
+═══════════════════════════════════════════ */
+function renderRelatorios() {}
+
+window.gerarRelatorio = tipo => {
+  const nomes = { geral:'Geral', individual:'Individual', frequencia:'Frequência', estrelas:'Estrelas', kahoot:'Kahoot', metas:'Metas' };
+  let body = '';
+  const tbl = (headers, rows) =>
+    `<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead style="background:#f5f3ef"><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table>`;
+
+  if (tipo==='geral'||tipo==='estrelas') {
+    const sorted = [...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0));
+    body += '<h2>Ranking de Alunos</h2>' + tbl(
+      ['#','Nome','Turma','Grupo','⭐','Presenças','Faltas'],
+      sorted.map((a,i)=>[i+1, a.nome, DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'—', DATA.grupos.find(g=>g.id===a.grupoId)?.nome||'—', a.estrelas||0, a.presencas||0, a.faltas||0])
+    );
+    body += '<h2 style="margin-top:20px">Ranking de Grupos</h2>' + tbl(
+      ['#','Grupo','⭐ Total'],
+      DATA.grupos.map((g,i)=>[ i+1, g.nome, DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0) ]).sort((a,b)=>b[2]-a[2])
+    );
   }
+  if (tipo==='frequencia') {
+    body += tbl(['Nome','Turma','Presenças','Faltas','Freq%'],
+      DATA.alunos.map(a=>{ const tot=(a.presencas||0)+(a.faltas||0); return [a.nome, DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'—', a.presencas||0, a.faltas||0, tot>0?Math.round(((a.presencas||0)/tot)*100)+'%':'—']; })
+    );
+  }
+  if (tipo==='kahoot') {
+    const min = DATA.config.kahootFreqMin||75;
+    body += tbl(['Aluno','Posição','Freq%','Data','Prêmio'],
+      [...DATA.kahoot].sort((a,b)=>new Date(b.data)-new Date(a.data)).map(k=>{
+        const premios={1:'Barra de chocolate',2:'2 bombons',3:'1 bombom'};
+        return [k.nomeAluno, k.pos+'º', k.freq+'%', fmtDate(k.data), (k.freq||0)>=min?(premios[k.pos]||'—'):'Não elegível'];
+      })
+    );
+  }
+  if (tipo==='metas') {
+    body += tbl(['Meta','Responsável','Prazo','Status','Progresso'],
+      DATA.metas.map(m=>[m.nome, m.resp||'—', fmtDate(m.prazo), m.status||'pendente', (m.prog||0)+'%'])
+    );
+  }
+  if (!body) body = '<p>Sem dados para exibir.</p>';
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório ${nomes[tipo]||tipo}</title></head><body style="font-family:Arial,sans-serif;margin:40px"><h1>EduStar — ${nomes[tipo]||tipo}</h1><p><small>Gerado em ${new Date().toLocaleString('pt-BR')}</small></p>${body}</body></html>`;
+  const w = window.open('','_blank');
+  if (w) { w.document.write(html); w.document.close(); setTimeout(()=>w.print(),400); }
+  toast('Relatório gerado!','ok');
+};
+
+window.exportCSV = () => {
+  const rows = [['Nome','ID','Turma','Grupo','Estrelas','Presenças','Faltas','Freq%']];
+  DATA.alunos.forEach(a=>{
+    const tot=(a.presencas||0)+(a.faltas||0);
+    rows.push([a.nome, a.id, DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'', DATA.grupos.find(g=>g.id===a.grupoId)?.nome||'', a.estrelas||0, a.presencas||0, a.faltas||0, tot>0?Math.round(((a.presencas||0)/tot)*100)+'%':'']);
+  });
+  const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const b = new Blob([csv],{type:'text/csv'}); const u=URL.createObjectURL(b);
+  const a = Object.assign(document.createElement('a'),{href:u,download:'edustar_alunos.csv'}); a.click(); URL.revokeObjectURL(u);
+  toast('CSV exportado!','ok');
+};
+
+/* ═══ AUTH SCREEN LOGIC ═══ */
+window.switchTab = tab => {
+  document.querySelectorAll('.auth-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  document.querySelectorAll('.auth-panel').forEach(p=>p.style.display='none');
+  gi('panel_'+tab).style.display='block';
+  clearErrs();
+};
+document.addEventListener('keydown', e => {
+  if (e.key!=='Enter') return;
+  if (gi('authScreen')?.style.display==='none') return;
+  if (gi('panel_login')?.style.display!=='none') doLogin();
+  else if (gi('panel_register')?.style.display!=='none') doRegister();
 });
+function showAuth() {
+  gi('authScreen').style.display='flex';
+  gi('app').style.display='none';
+}
 </script>
 
 <style>
-/* ═══════════════════════════════════════════
-   DESIGN: Refined minimal · warm off-white
-   Fonts: Instrument Serif (display) + DM Sans
-═══════════════════════════════════════════ */
 :root{
-  --bg:        #F5F3EF;
-  --surface:   #FFFFFF;
-  --surface2:  #FAFAF8;
-  --border:    #E8E5DF;
-  --border2:   #D4CFC6;
-
-  --text:      #1A1916;
-  --text2:     #4A4740;
-  --text3:     #8A8680;
-
-  --gold:      #C9953A;
-  --gold-l:    #FBF3E3;
-  --gold-b:    #EEDCB0;
-
-  --blue:      #2B5CE6;
-  --blue-l:    #EEF2FD;
-  --blue-b:    #C2CFFA;
-
-  --green:     #1B7B4A;
-  --green-l:   #EDFAF3;
-  --red:       #C0392B;
-  --red-l:     #FDECEA;
-  --amber:     #C07B1A;
-  --amber-l:   #FEF7E9;
-
-  --sidebar-w: 260px;
-  --topbar-h:  56px;
-  --r:         10px;
-  --r-lg:      14px;
-  --sh:        0 1px 4px rgba(0,0,0,.06), 0 0 0 1px rgba(0,0,0,.04);
-  --sh2:       0 4px 16px rgba(0,0,0,.08);
-  --tr:        .17s ease;
+  --bg:#F5F3EF; --surface:#FFFFFF; --surface2:#FAFAF8; --border:#E8E5DF; --border2:#D4CFC6;
+  --text:#1A1916; --t2:#4A4740; --t3:#8A8680; --t4:#B5B0A8;
+  --gold:#C9953A; --gold-l:#FBF3E3; --gold-b:#EEDCB0;
+  --blue:#2B5CE6; --blue-l:#EEF2FD;
+  --green:#1B7B4A; --green-l:#EDFAF3;
+  --red:#C0392B; --red-l:#FDECEA;
+  --warn:#C07B1A; --warn-l:#FEF7E9;
+  --sidebar:220px; --topbar:52px;
+  --r:8px; --r-lg:12px;
+  --sh:0 1px 3px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.04);
+  --sh2:0 8px 24px rgba(0,0,0,.1);
+  --tr:.16s ease;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{font-size:14px}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased}
 ::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
 input,button,select,textarea{font-family:inherit;font-size:inherit}
 button{cursor:pointer}
+a{color:var(--blue);text-decoration:none}
 
-/* ── Auth Screen ── */
-#authScreen{
-  min-height:100vh;
-  display:flex;align-items:center;justify-content:center;
-  background:var(--bg);
-  padding:20px;
-}
-.auth-wrap{
-  width:100%;max-width:400px;
-}
-.auth-logo{
-  text-align:center;margin-bottom:32px;
-}
-.auth-logo-icon{
-  font-size:36px;display:block;margin-bottom:10px;
-}
-.auth-logo h1{
-  font-family:'Instrument Serif',serif;
-  font-size:28px;color:var(--text);letter-spacing:-.3px;
-}
-.auth-logo p{font-size:13px;color:var(--text3);margin-top:4px}
-.auth-card{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--r-lg);
-  padding:28px 28px 24px;
-  box-shadow:var(--sh2);
-}
-.auth-tabs{
-  display:flex;gap:2px;
-  background:var(--bg);
-  border:1px solid var(--border);
-  border-radius:var(--r);
-  padding:3px;
-  margin-bottom:22px;
-}
-.auth-tab{
-  flex:1;padding:7px;text-align:center;
-  font-size:13px;font-weight:500;color:var(--text3);
-  background:none;border:none;border-radius:8px;
-  transition:all var(--tr);
-}
+/* ── AUTH ── */
+#authScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--bg)}
+.auth-wrap{width:100%;max-width:400px}
+.auth-logo{text-align:center;margin-bottom:28px}
+.auth-logo-icon{font-size:32px;display:block;margin-bottom:8px}
+.auth-logo h1{font-family:'Instrument Serif',serif;font-size:26px;letter-spacing:-.3px}
+.auth-logo p{font-size:13px;color:var(--t3);margin-top:3px}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px;box-shadow:var(--sh2)}
+.auth-tabs{display:flex;gap:2px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:3px;margin-bottom:20px}
+.auth-tab{flex:1;padding:7px;text-align:center;font-size:13px;font-weight:500;color:var(--t3);background:none;border:none;border-radius:6px;transition:all var(--tr)}
 .auth-tab.active{background:var(--surface);color:var(--text);box-shadow:var(--sh)}
 
-/* ── Form elements ── */
-.fgroup{margin-bottom:14px}
-.flabel{display:block;font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.4px;text-transform:uppercase;margin-bottom:5px}
-.finput{
-  width:100%;background:var(--surface2);
-  border:1.5px solid var(--border);
-  border-radius:var(--r);color:var(--text);
-  padding:9px 12px;font-size:14px;
-  outline:none;transition:border-color var(--tr), box-shadow var(--tr);
-}
+/* ── FORM ── */
+.fgroup{margin-bottom:13px}
+.flabel{display:block;font-size:11px;font-weight:600;color:var(--t3);letter-spacing:.4px;text-transform:uppercase;margin-bottom:4px}
+.finput{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--r);color:var(--text);padding:9px 11px;outline:none;transition:border-color var(--tr),box-shadow var(--tr);margin-bottom:0}
 .finput:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-l)}
-.finput.input-error{border-color:var(--red)}
-.err-msg{display:none;font-size:11px;color:var(--red);margin-top:4px}
+.finput.inp-err{border-color:var(--red)}
+textarea.finput{resize:vertical;min-height:72px}
+.err-msg{display:none;font-size:11px;color:var(--red);margin-top:3px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
 
-/* ── Buttons ── */
-.btn-primary{
-  display:inline-flex;align-items:center;justify-content:center;gap:6px;
-  background:var(--text);color:#fff;
-  border:none;border-radius:var(--r);
-  padding:10px 18px;font-size:14px;font-weight:500;
-  transition:all var(--tr);white-space:nowrap;
-}
-.btn-primary:hover{background:#333;transform:translateY(-1px)}
-.btn-primary:active{transform:none}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.btn-primary.sm{padding:7px 13px;font-size:13px}
-.btn-primary.full{width:100%}
-.btn-primary.gold{background:var(--gold);color:#fff}
-.btn-primary.gold:hover{background:#b8852e}
-.btn-secondary{
-  display:inline-flex;align-items:center;gap:6px;
-  background:var(--surface);color:var(--text2);
-  border:1.5px solid var(--border);
-  border-radius:var(--r);padding:9px 16px;
-  font-size:13px;font-weight:500;
-  transition:all var(--tr);white-space:nowrap;
-}
-.btn-secondary:hover{border-color:var(--border2);background:var(--surface2)}
-.btn-secondary.sm{padding:6px 12px;font-size:12px}
-.btn-danger-outline{
-  background:none;border:1.5px solid var(--red);
-  color:var(--red);border-radius:var(--r);
-  padding:9px 16px;font-size:13px;font-weight:500;
-  transition:all var(--tr);
-}
-.btn-danger-outline:hover{background:var(--red-l)}
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;border-radius:var(--r);font-size:13px;font-weight:500;transition:all var(--tr);border:none;white-space:nowrap}
+.btn.primary{background:var(--text);color:#fff}
+.btn.primary:hover{background:#333;transform:translateY(-1px)}
+.btn.primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn.gold{background:var(--gold);color:#fff}
+.btn.gold:hover{background:#b8852e;transform:translateY(-1px)}
+.btn.outline{background:var(--surface);color:var(--t2);border:1.5px solid var(--border2)}
+.btn.outline:hover{border-color:var(--border2);background:var(--surface2)}
+.btn.sm{padding:6px 11px;font-size:12px}
+.btn.full{width:100%}
+.btn.danger{background:var(--red-l);color:var(--red);border:1px solid #f5c6c1}
+.btn.danger:hover{background:var(--red);color:#fff}
+.ibtn{background:none;border:none;padding:4px 6px;border-radius:6px;font-size:13px;color:var(--t3);transition:all var(--tr)}
+.ibtn:hover{background:var(--surface2);color:var(--text)}
+.ibtn.red:hover{background:var(--red-l);color:var(--red)}
+.ibtn.gold:hover{background:var(--gold-l);color:var(--gold)}
+.ibtn.sm{padding:3px 5px;font-size:11px}
 
-/* ── App screen ── */
-#appScreen{
-  min-height:100vh;display:flex;flex-direction:column;
-}
-.topbar{
-  height:var(--topbar-h);
-  background:var(--surface);
-  border-bottom:1px solid var(--border);
-  display:flex;align-items:center;
-  padding:0 20px;gap:14px;
-  position:sticky;top:0;z-index:50;
-}
-.topbar-brand{
-  font-family:'Instrument Serif',serif;
-  font-size:20px;color:var(--text);
-  display:flex;align-items:center;gap:8px;
-}
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:99px;font-size:11px;font-weight:600;border:1px solid transparent}
+.badge.gray{background:var(--surface2);color:var(--t3);border-color:var(--border)}
+.badge.blue{background:var(--blue-l);color:var(--blue);border-color:#c2cffa}
+.badge.green{background:var(--green-l);color:var(--green);border-color:#a7f3d0}
+.badge.red{background:var(--red-l);color:var(--red);border-color:#fca5a5}
+.badge.warn{background:var(--warn-l);color:var(--warn);border-color:#fde68a}
+.badge.gold{background:var(--gold-l);color:var(--gold);border-color:var(--gold-b)}
+
+/* ── APP LAYOUT ── */
+#app{display:none;flex-direction:column;min-height:100vh}
+.topbar{height:var(--topbar);background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:12px;position:sticky;top:0;z-index:100}
+.topbar-brand{font-family:'Instrument Serif',serif;font-size:18px;display:flex;align-items:center;gap:7px}
 .topbar-spacer{flex:1}
-.topbar-user{
-  font-size:13px;color:var(--text3);
-  display:flex;align-items:center;gap:10px;
-}
-.user-av{
-  width:30px;height:30px;border-radius:50%;
-  background:var(--gold-l);border:1.5px solid var(--gold-b);
-  display:flex;align-items:center;justify-content:center;
-  font-size:12px;font-weight:600;color:var(--gold);
-}
-.app-body{
-  display:flex;flex:1;overflow:hidden;
-  height:calc(100vh - var(--topbar-h));
-}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--gold);display:inline-block}
+.sync-dot.ok{background:var(--green);animation:pulse .6s ease}
+@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.4)}100%{transform:scale(1)}}
+#syncTxt{font-size:12px;color:var(--t3)}
+.user-av{width:30px;height:30px;border-radius:50%;background:var(--gold-l);border:1.5px solid var(--gold-b);color:var(--gold);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.hamburger{background:none;border:none;font-size:20px;color:var(--t2);display:none}
+.app-body{display:flex;flex:1;overflow:hidden;height:calc(100vh - var(--topbar))}
 
-/* ── Sidebar ── */
-.sidebar{
-  width:var(--sidebar-w);min-width:var(--sidebar-w);
-  background:var(--surface);
-  border-right:1px solid var(--border);
-  display:flex;flex-direction:column;
-  overflow:hidden;
-}
-.sidebar-head{
-  padding:16px 16px 10px;
-  display:flex;align-items:center;justify-content:space-between;
-  border-bottom:1px solid var(--border);
-}
-.sidebar-title{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.5px;text-transform:uppercase}
-.sidebar-body{flex:1;overflow-y:auto;padding:8px}
-.turma-item{
-  display:flex;align-items:center;gap:8px;
-  padding:9px 10px;border-radius:var(--r);
-  cursor:pointer;transition:background var(--tr);
-  border:1.5px solid transparent;
-}
-.turma-item:hover{background:var(--surface2)}
-.turma-item.active{background:var(--gold-l);border-color:var(--gold-b)}
-.turma-info{flex:1;min-width:0}
-.turma-nome{display:block;font-size:13.5px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.turma-ano{display:block;font-size:11px;color:var(--text3);margin-top:1px}
-.turma-actions{display:flex;gap:3px;opacity:0;transition:opacity var(--tr);flex-shrink:0}
-.turma-item:hover .turma-actions, .turma-item.active .turma-actions{opacity:1}
-.empty-side{padding:24px 12px;text-align:center;color:var(--text3)}
-.empty-side span{display:block;font-size:13px}
-.empty-side small{font-size:12px;opacity:.7}
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sidebar);min-width:var(--sidebar);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;transition:transform var(--tr)}
+.sb-section{padding:14px 10px 4px;font-size:10px;font-weight:700;color:var(--t4);letter-spacing:.7px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border:none;background:none;color:var(--t2);font-size:13px;font-weight:500;border-radius:var(--r);cursor:pointer;text-align:left;width:100%;transition:all var(--tr)}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--gold-l);color:var(--gold);font-weight:600}
+.nav-icon{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.sb-footer{padding:8px 10px;border-top:1px solid var(--border);margin-top:auto}
 
-/* ── Icon buttons ── */
-.icon-btn{
-  background:none;border:none;padding:4px 6px;border-radius:6px;
-  font-size:13px;color:var(--text3);
-  transition:background var(--tr),color var(--tr);
-}
-.icon-btn:hover{background:var(--surface2);color:var(--text)}
-.icon-btn.danger:hover{background:var(--red-l);color:var(--red)}
+/* ── MAIN ── */
+.main-panel{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.main-toolbar{padding:14px 20px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:10}
+#pageTitle{font-family:'Instrument Serif',serif;font-size:19px}
+.toolbar-right{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.page-body{padding:16px 20px;flex:1}
+.page{display:none}.page.active{display:block;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 
-/* ── Main panel ── */
-.main-panel{
-  flex:1;overflow-y:auto;
-  display:flex;flex-direction:column;
-}
-.main-toolbar{
-  padding:16px 20px 12px;
-  display:flex;align-items:flex-start;justify-content:space-between;
-  border-bottom:1px solid var(--border);
-  background:var(--surface);
-  gap:12px;flex-wrap:wrap;
-  position:sticky;top:0;z-index:10;
-}
-.panel-title{
-  font-family:'Instrument Serif',serif;
-  font-size:20px;color:var(--text);
-}
-.turma-header-info{flex:1}
-.turma-stats{display:flex;gap:12px;margin-top:3px}
-.turma-stats span{font-size:12px;color:var(--text3)}
-.toolbar-btns{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap}
+/* ── DEMO BANNER ── */
+.demo-banner{display:none;background:var(--warn-l);border-bottom:1px solid var(--gold-b);padding:6px 16px;font-size:12px;color:var(--warn);align-items:center;gap:8px}
 
-/* ── Freq bar ── */
-.freq-bar{
-  display:none;
-  align-items:center;justify-content:space-between;
-  padding:10px 20px;gap:10px;flex-wrap:wrap;
-  background:var(--gold-l);border-bottom:1px solid var(--gold-b);
-}
-.freq-bar-left{font-size:13px;font-weight:500;color:var(--amber)}
-.freq-bar-right{display:flex;gap:8px}
+/* ── DASHBOARD ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;transition:box-shadow var(--tr)}
+.stat-card:hover{box-shadow:var(--sh)}
+.sc-label{font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:7px}
+.sc-val{font-family:'Instrument Serif',serif;font-size:28px;color:var(--text)}
+.charts-row{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:20px}
+.chart-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px}
+.chart-box h4{font-size:13px;margin-bottom:12px;color:var(--t2)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.rank-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px}
+.rank-box h4{font-size:13px;margin-bottom:12px;color:var(--t2)}
+.rank-row{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.rank-row:last-child{border-bottom:none}
+.rk-pos{font-size:16px;width:26px;text-align:center}
+.rk-pos-lg{font-size:20px;width:30px;text-align:center;flex-shrink:0}
+.rk-n{font-size:12px;color:var(--t3);font-weight:700}
+.rk-nome{flex:1;font-weight:500}
+.rk-pts{font-weight:700;color:var(--gold)}
 
-/* ── Alunos ── */
-.alunos-list{padding:12px 20px;display:flex;flex-direction:column;gap:8px}
-.aluno-card{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--r-lg);
-  padding:12px 14px;
-  display:flex;align-items:center;gap:12px;
-  transition:box-shadow var(--tr),border-color var(--tr);
-}
-.aluno-card:hover{box-shadow:var(--sh);border-color:var(--border2)}
-.aluno-card.freq-card{border-color:var(--gold-b);background:var(--gold-l)}
-.aluno-rank{font-size:18px;width:28px;text-align:center;flex-shrink:0}
-.rank-num{font-size:12px;color:var(--text3);font-weight:600}
-.aluno-body{flex:1;min-width:0}
-.aluno-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
-.aluno-nome{font-size:14px;font-weight:500;color:var(--text)}
-.aluno-meta{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.est-count{font-size:13px;font-weight:600;color:var(--gold)}
-.freq-badge{font-size:11px;font-weight:600;padding:2px 7px;border-radius:99px}
-.freq-badge.good{background:var(--green-l);color:var(--green)}
-.freq-badge.ok{background:var(--amber-l);color:var(--amber)}
-.freq-badge.bad{background:var(--red-l);color:var(--red)}
-.aluno-bar-wrap{}
-.aluno-bar{height:4px;background:var(--bg);border-radius:99px;overflow:hidden}
-.aluno-bar-fill{height:100%;background:linear-gradient(90deg,var(--gold),#E8B84B);border-radius:99px;transition:width .4s}
-.aluno-actions{display:flex;gap:4px;flex-shrink:0;align-items:center}
-.star-btn{
-  width:26px;height:26px;border-radius:7px;
-  border:1.5px solid var(--border);
-  background:var(--surface);
-  font-size:14px;font-weight:700;
-  color:var(--text2);
-  display:flex;align-items:center;justify-content:center;
-  transition:all var(--tr);
-}
-.star-btn.plus:hover{border-color:var(--gold);background:var(--gold-l);color:var(--gold)}
-.star-btn.minus:hover{border-color:var(--border2);background:var(--surface2)}
-.aluno-nome-wrap{flex:1}
-.freq-btns{display:flex;gap:6px;flex-wrap:wrap}
-.fq-btn{
-  padding:5px 11px;border-radius:7px;
-  font-size:12px;font-weight:500;border:1.5px solid var(--border);
-  background:var(--surface);color:var(--text2);
-  transition:all var(--tr);
-}
+/* ── CARDS/LISTS ── */
+.card-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:8px;transition:box-shadow var(--tr)}
+.card-item:hover{box-shadow:var(--sh)}
+.ci-icon{font-size:20px;flex-shrink:0}
+.ci-body{flex:1;min-width:0}
+.ci-title{font-size:14px;font-weight:500}
+.ci-sub{font-size:12px;color:var(--t3);margin-top:2px}
+.ci-desc{font-size:12px;color:var(--t3);margin-top:3px}
+.ci-actions{display:flex;gap:4px;flex-shrink:0}
+
+/* ── GRUPOS ── */
+.groups-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.grupo-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;transition:box-shadow var(--tr)}
+.grupo-card:hover{box-shadow:var(--sh)}
+.gc-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.gc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.gc-nome{font-size:14px;font-weight:600;flex:1}
+.gc-pts{font-family:'Instrument Serif',serif;font-size:22px;color:var(--gold);margin-bottom:3px}
+.gc-sub{font-size:12px;color:var(--t3);margin-bottom:8px}
+.gc-members{display:flex;flex-wrap:wrap}
+.chip{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:2px 7px;font-size:11px;font-weight:500;margin:2px}
+
+/* ── ALUNOS ── */
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.filter-row .finput{max-width:220px;margin:0;flex:1}
+.aluno-row{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:11px 13px;display:flex;align-items:center;gap:10px;margin-bottom:7px;transition:box-shadow var(--tr)}
+.aluno-row:hover{box-shadow:var(--sh)}
+.ar-av{width:34px;height:34px;border-radius:50%;background:var(--gold-l);border:1.5px solid var(--gold-b);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--gold);flex-shrink:0}
+.ar-body{flex:1;min-width:0}
+.ar-nome{font-size:13.5px;font-weight:500;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ar-meta{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+.ar-est{font-weight:700;color:var(--gold);font-size:13px;flex-shrink:0}
+.ar-actions{display:flex;gap:4px;flex-shrink:0}
+
+/* ── PROGRESS ── */
+.prog-wrap{display:flex;align-items:center;gap:8px}
+.prog-bar{flex:1;height:5px;background:var(--bg);border-radius:99px;overflow:hidden}
+.prog-fill{height:100%;background:var(--gold);border-radius:99px;transition:width .4s}
+.prog-lbl{font-size:11px;font-weight:700;color:var(--t3);white-space:nowrap}
+
+/* ── FREQUÊNCIA ── */
+.freq-summary{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:10px 14px;margin-bottom:14px;font-size:13px}
+.freq-row{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:10px 13px;display:flex;align-items:center;gap:10px;margin-bottom:7px;flex-wrap:wrap}
+.fr-nome{font-size:13.5px;font-weight:500;flex:1;min-width:120px}
+.freq-btns{display:flex;gap:5px;flex-wrap:wrap}
+.fq-btn{padding:5px 11px;border-radius:7px;font-size:12px;font-weight:500;border:1.5px solid var(--border);background:var(--surface);color:var(--t2);transition:all var(--tr)}
 .fq-btn.presente.active{background:var(--green-l);border-color:var(--green);color:var(--green)}
-.fq-btn.atraso.active{background:var(--amber-l);border-color:var(--amber);color:var(--amber)}
+.fq-btn.atraso.active{background:var(--warn-l);border-color:var(--warn);color:var(--warn)}
 .fq-btn.ausente.active{background:var(--red-l);border-color:var(--red);color:var(--red)}
 .fq-btn:hover{border-color:var(--border2);background:var(--surface2)}
 
-/* ── Empty ── */
-.empty-main{
-  display:flex;flex-direction:column;align-items:center;
-  justify-content:center;padding:60px 20px;gap:12px;
-  text-align:center;color:var(--text3);flex:1;
-}
-.empty-icon{font-size:40px;opacity:.5}
-.empty-main p{font-size:14px;max-width:260px;line-height:1.6}
+/* ── SWOT ── */
+.swot-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.swot-q{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;min-height:160px}
+.swot-q.sq-S{border-top:3px solid var(--green)}
+.swot-q.sq-W{border-top:3px solid var(--red)}
+.swot-q.sq-O{border-top:3px solid var(--blue)}
+.swot-q.sq-T{border-top:3px solid var(--gold)}
+.swot-q-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.swot-q-title{font-size:13px;font-weight:700}
+.swot-item{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:7px 9px;font-size:12.5px;display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:5px}
+.swot-empty{font-size:12px;color:var(--t4);font-style:italic}
 
-/* ── Modals ── */
-.modal-overlay{
-  display:none;position:fixed;inset:0;
-  background:rgba(20,19,17,.45);backdrop-filter:blur(3px);
-  z-index:200;align-items:center;justify-content:center;padding:20px;
-}
-.modal-overlay.open{display:flex}
-.modal{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--r-lg);
-  width:100%;max-width:420px;
-  max-height:90vh;overflow-y:auto;
-  box-shadow:0 20px 60px rgba(0,0,0,.15);
-  animation:mIn .2s cubic-bezier(.34,1.2,.64,1);
-}
-@keyframes mIn{from{opacity:0;transform:scale(.95)translateY(8px)}to{opacity:1;transform:none}}
-.modal-head{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:18px 20px 0;
-}
-.modal-head h3{font-family:'Instrument Serif',serif;font-size:18px}
-.modal-close{
-  background:none;border:none;
-  color:var(--text3);font-size:18px;
-  width:28px;height:28px;border-radius:6px;
-  display:flex;align-items:center;justify-content:center;
-  transition:background var(--tr);
-}
-.modal-close:hover{background:var(--surface2)}
-.modal-body{padding:16px 20px}
-.modal-foot{padding:0 20px 18px;display:flex;justify-content:flex-end;gap:8px}
-.cfg-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+/* ── W2H ── */
+.w2h-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.w2h-prog-wrap{flex:1;min-width:200px}
+.w2h-prog-bar{height:6px;background:var(--bg);border-radius:99px;overflow:hidden;margin-top:4px}
+.w2h-prog-fill{height:100%;background:var(--gold);border-radius:99px;transition:width .4s}
+.w2h-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:13px 14px;margin-bottom:8px}
+.w2h-card.done{opacity:.55}
+.w2h-head{display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-wrap:wrap}
+.w2h-title{font-weight:600;font-size:14px;flex:1}
+.w2h-tags{display:flex;flex-wrap:wrap;gap:5px}
+.w2h-tag{font-size:11.5px;padding:3px 8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--t3)}
+.w2h-tag b{color:var(--t2)}
+
+/* ── 5P ── */
+.p5-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;margin-bottom:8px}
+.p5-head{display:flex;justify-content:space-between;margin-bottom:10px}
+.p5-prob{font-family:'Instrument Serif',serif;font-size:15px;flex:1}
+.p5-list{padding-left:18px;font-size:13px;color:var(--t2);line-height:1.8}
+.p5-causa{background:var(--green-l);border:1px solid #a7f3d0;border-radius:7px;padding:8px 10px;font-size:12.5px;color:var(--green);margin-top:8px}
+
+/* ── TABLE ── */
+.data-table{width:100%;border-collapse:collapse;background:var(--surface);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--sh)}
+.data-table thead tr{background:var(--surface2);border-bottom:1px solid var(--border)}
+.data-table th{padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.4px}
+.data-table td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--t2)}
+.data-table tbody tr:last-child td{border-bottom:none}
+.data-table tbody tr:hover{background:var(--surface2)}
+
+/* ── RELAT ── */
+.relat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.relat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 16px;text-align:center;cursor:pointer;transition:all var(--tr)}
+.relat-card:hover{box-shadow:var(--sh2);transform:translateY(-2px);border-color:var(--gold)}
+.relat-card .rc-icon{font-size:28px;margin-bottom:9px}
+.relat-card h4{font-size:13px;margin-bottom:4px}
+.relat-card p{font-size:11px;color:var(--t3)}
+
+/* ── CONFIG ── */
+.cfg-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px;margin-bottom:14px}
+.cfg-section h4{font-size:14px;font-weight:600;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.cfg-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap}
 .cfg-row:last-child{border-bottom:none}
-.cfg-label{font-size:13px;color:var(--text2)}
-.cfg-label small{display:block;font-size:11px;color:var(--text3);margin-top:2px}
-.cfg-input{width:72px;text-align:right}
+.cfg-label{font-size:13px;color:var(--t2);flex:1}
+.cfg-label small{display:block;font-size:11px;color:var(--t3);margin-top:1px}
+.cfg-val{width:90px;text-align:right}
 
-/* ── Toast ── */
-.toast{
-  position:fixed;bottom:20px;right:20px;
-  background:var(--text);color:#fff;
-  border-radius:var(--r);padding:10px 16px;
-  font-size:13px;font-weight:500;
-  box-shadow:0 8px 24px rgba(0,0,0,.2);
-  opacity:0;pointer-events:none;
-  transform:translateY(6px);
-  transition:all .2s;z-index:999;max-width:320px;
-}
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,13,10,.4);backdrop-filter:blur(3px);z-index:300;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);width:100%;max-width:460px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.15);animation:mIn .2s cubic-bezier(.34,1.2,.64,1)}
+.modal.wide{max-width:640px}
+@keyframes mIn{from{opacity:0;transform:scale(.95)translateY(8px)}to{opacity:1;transform:none}}
+.m-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 0}
+.m-head h3{font-family:'Instrument Serif',serif;font-size:17px}
+.m-close{background:none;border:none;color:var(--t3);font-size:18px;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background var(--tr)}
+.m-close:hover{background:var(--surface2)}
+.m-body{padding:16px 20px}
+.m-foot{padding:0 20px 18px;display:flex;justify-content:flex-end;gap:8px}
+
+/* ── EMPTY ── */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px;gap:10px;text-align:center;color:var(--t3)}
+.empty-ic{font-size:38px;opacity:.45}
+.empty-state p{font-size:14px;font-weight:500}
+.empty-state small{font-size:12px;opacity:.75}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:18px;right:18px;background:var(--text);color:#fff;border-radius:var(--r);padding:10px 16px;font-size:13px;font-weight:500;box-shadow:var(--sh2);opacity:0;pointer-events:none;transform:translateY(6px);transition:all .18s;z-index:999;max-width:320px}
 .toast.show{opacity:1;transform:none;pointer-events:all}
-.toast.success{background:var(--green)}
-.toast.error{background:var(--red)}
-.toast.warn{background:var(--amber);color:#fff}
+.toast.ok{background:var(--green)}
+.toast.err{background:var(--red)}
+.toast.warn{background:var(--warn)}
 
-/* ── Sidebar config btn ── */
-.sidebar-footer{padding:10px 8px;border-top:1px solid var(--border)}
-
-/* ── Demo banner ── */
-.demo-banner{
-  background:var(--amber-l);
-  border-bottom:1px solid var(--gold-b);
-  padding:7px 20px;
-  font-size:12px;color:var(--amber);
-  display:flex;align-items:center;justify-content:space-between;gap:10px;
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  :root{--sidebar:0px}
+  .sidebar{position:fixed;top:var(--topbar);left:0;width:240px;height:calc(100vh - var(--topbar));z-index:90;transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0);box-shadow:var(--sh2)}
+  .hamburger{display:block}
+  .charts-row,.two-col,.swot-grid{grid-template-columns:1fr}
+  .form-row{grid-template-columns:1fr}
 }
-
-/* ── Responsive ── */
-@media(max-width:700px){
-  :root{--sidebar-w:0px}
-  .sidebar{display:none}
-  .aluno-card{flex-wrap:wrap}
-  .aluno-actions{width:100%;justify-content:flex-end}
+@media(max-width:480px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .groups-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 
-<!-- ████  AUTH  ████ -->
-<div id="authScreen" style="display:flex">
+<!-- ████████  AUTH  ████████ -->
+<div id="authScreen">
   <div class="auth-wrap">
     <div class="auth-logo">
       <span class="auth-logo-icon">⭐</span>
-      <h1>EduStar</h1>
-      <p>Gestão de estrelas por frequência</p>
+      <h1 class="plat-nome">EduStar</h1>
+      <p>Gestão escolar gamificada</p>
     </div>
     <div class="auth-card">
       <div class="auth-tabs">
-        <button class="auth-tab active" data-tab="login"    onclick="switchTab('login')">Entrar</button>
-        <button class="auth-tab"        data-tab="register" onclick="switchTab('register')">Criar conta</button>
+        <button class="auth-tab active" data-tab="login" onclick="switchTab('login')">Entrar</button>
+        <button class="auth-tab" data-tab="register" onclick="switchTab('register')">Criar conta</button>
       </div>
-
       <!-- LOGIN -->
-      <div id="panel_login">
-        <div class="fgroup">
-          <label class="flabel" for="lEmail">E-mail</label>
-          <input id="lEmail" type="email" class="finput" placeholder="professor@escola.com" autocomplete="email">
-          <div class="err-msg" id="err_lEmail"></div>
-        </div>
-        <div class="fgroup">
-          <label class="flabel" for="lPw">Senha</label>
-          <input id="lPw" type="password" class="finput" placeholder="••••••••" autocomplete="current-password">
-          <div class="err-msg" id="err_lPw"></div>
-        </div>
-        <button id="btnLogin" class="btn-primary full" onclick="doLogin()" style="margin-top:4px">
-          Entrar
-        </button>
+      <div id="panel_login" class="auth-panel">
+        <div class="fgroup"><label class="flabel">E-mail</label><input id="lEmail" type="email" class="finput" placeholder="professor@escola.com" autocomplete="email"><div class="err-msg" id="err_lEmail"></div></div>
+        <div class="fgroup"><label class="flabel">Senha</label><input id="lPw" type="password" class="finput" placeholder="••••••••" autocomplete="current-password"><div class="err-msg" id="err_lPw"></div></div>
+        <button id="btnLogin" class="btn primary full" onclick="doLogin()" style="margin-top:4px">Entrar</button>
       </div>
-
       <!-- REGISTER -->
-      <div id="panel_register" style="display:none">
-        <div class="fgroup">
-          <label class="flabel" for="rName">Seu nome</label>
-          <input id="rName" type="text" class="finput" placeholder="Prof. Maria Silva" autocomplete="name">
-          <div class="err-msg" id="err_rName"></div>
-        </div>
-        <div class="fgroup">
-          <label class="flabel" for="rEmail">E-mail</label>
-          <input id="rEmail" type="email" class="finput" placeholder="professor@escola.com" autocomplete="email">
-          <div class="err-msg" id="err_rEmail"></div>
-        </div>
-        <div class="fgroup">
-          <label class="flabel" for="rPw">Senha</label>
-          <input id="rPw" type="password" class="finput" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
-          <div class="err-msg" id="err_rPw"></div>
-        </div>
-        <div class="fgroup">
-          <label class="flabel" for="rPw2">Confirmar senha</label>
-          <input id="rPw2" type="password" class="finput" placeholder="Repita a senha" autocomplete="new-password">
-          <div class="err-msg" id="err_rPw2"></div>
-        </div>
-        <button id="btnRegister" class="btn-primary full" onclick="doRegister()" style="margin-top:4px">
-          Criar conta
-        </button>
+      <div id="panel_register" class="auth-panel" style="display:none">
+        <div class="fgroup"><label class="flabel">Nome</label><input id="rNome" type="text" class="finput" placeholder="Prof. Maria Silva" autocomplete="name"><div class="err-msg" id="err_rNome"></div></div>
+        <div class="fgroup"><label class="flabel">E-mail</label><input id="rEmail" type="email" class="finput" placeholder="professor@escola.com" autocomplete="email"><div class="err-msg" id="err_rEmail"></div></div>
+        <div class="fgroup"><label class="flabel">Senha</label><input id="rPw" type="password" class="finput" placeholder="Mínimo 6 caracteres" autocomplete="new-password"><div class="err-msg" id="err_rPw"></div></div>
+        <div class="fgroup"><label class="flabel">Confirmar senha</label><input id="rPw2" type="password" class="finput" placeholder="Repita a senha"><div class="err-msg" id="err_rPw2"></div></div>
+        <button id="btnReg" class="btn primary full" onclick="doRegister()" style="margin-top:4px">Criar conta</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ████  APP  ████ -->
-<div id="appScreen" style="display:none;flex-direction:column">
+<!-- ████████  APP  ████████ -->
+<div id="app">
+  <div id="demoBanner" class="demo-banner">⚠️ Firebase não configurado — dados salvos localmente neste navegador</div>
 
-  <div id="demoBanner" class="demo-banner" style="display:none">
-    ⚠️ Modo demo — dados salvos localmente. Configure o Firebase para salvar na nuvem.
-  </div>
-
-  <!-- Topbar -->
+  <!-- TOPBAR -->
   <div class="topbar">
-    <div class="topbar-brand">⭐ <span>EduStar</span></div>
+    <button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+    <div class="topbar-brand">⭐ <span class="plat-nome">EduStar</span></div>
     <div class="topbar-spacer"></div>
-    <div class="topbar-user">
-      <span id="userNameDisplay"></span>
-      <div class="user-av" id="userAv">?</div>
-      <button class="btn-secondary sm" onclick="doLogout()">Sair</button>
+    <div class="topbar-right">
+      <span class="sync-dot" id="syncDot"></span>
+      <span id="syncTxt" style="font-size:12px;color:var(--t3)">Online</span>
+      <div class="user-av" id="uAv">?</div>
+      <span id="uNome" style="font-size:13px;color:var(--t2)"></span>
+      <button class="btn outline sm" onclick="doLogout()">Sair</button>
     </div>
   </div>
 
   <div class="app-body">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div style="padding:8px 10px">
+        <div class="sb-section">Principal</div>
+        <button class="nav-item active" data-page="dashboard"     onclick="navTo('dashboard')"><span class="nav-icon">📊</span> Dashboard</button>
 
-    <!-- Sidebar -->
-    <aside class="sidebar">
-      <div class="sidebar-head">
-        <span class="sidebar-title">Turmas</span>
-        <button class="btn-primary sm" onclick="openNewTurma()" title="Nova turma">+ Nova</button>
-      </div>
-      <div class="sidebar-body" id="turmasList">
-        <div class="empty-side"><span>Nenhuma turma</span><small>Clique em + Nova</small></div>
-      </div>
-      <div class="sidebar-footer">
-        <button class="icon-btn" onclick="openConfig()" style="width:100%;text-align:left;padding:8px 10px;font-size:13px;color:var(--text3)">
-          ⚙️ Pontuação
-        </button>
+        <div class="sb-section">Gestão</div>
+        <button class="nav-item" data-page="turmas"      onclick="navTo('turmas')"><span class="nav-icon">🏫</span> Turmas</button>
+        <button class="nav-item" data-page="grupos"      onclick="navTo('grupos')"><span class="nav-icon">🏆</span> Grupos</button>
+        <button class="nav-item" data-page="alunos"      onclick="navTo('alunos')"><span class="nav-icon">👥</span> Alunos</button>
+
+        <div class="sb-section">Sala de Aula</div>
+        <button class="nav-item" data-page="frequencia"  onclick="navTo('frequencia')"><span class="nav-icon">📅</span> Frequência</button>
+        <button class="nav-item" data-page="estrelas"    onclick="navTo('estrelas')"><span class="nav-icon">⭐</span> Rota das Estrelas</button>
+        <button class="nav-item" data-page="desafios"    onclick="navTo('desafios')"><span class="nav-icon">🎯</span> Desafios</button>
+        <button class="nav-item" data-page="kahoot"      onclick="navTo('kahoot')"><span class="nav-icon">🎮</span> Kahoot</button>
+        <button class="nav-item" data-page="recompensas" onclick="navTo('recompensas')"><span class="nav-icon">🎁</span> Recompensas</button>
+
+        <div class="sb-section">Ferramentas</div>
+        <button class="nav-item" data-page="metas"       onclick="navTo('metas')"><span class="nav-icon">📋</span> Metas</button>
+        <button class="nav-item" data-page="swot"        onclick="navTo('swot')"><span class="nav-icon">🔷</span> Matriz SWOT</button>
+        <button class="nav-item" data-page="w2h"         onclick="navTo('w2h')"><span class="nav-icon">📝</span> 5W2H</button>
+        <button class="nav-item" data-page="porques"     onclick="navTo('porques')"><span class="nav-icon">🔍</span> 5 Porquês</button>
+
+        <div class="sb-section">Sistema</div>
+        <button class="nav-item" data-page="ranking"     onclick="navTo('ranking')"><span class="nav-icon">🥇</span> Ranking</button>
+        <button class="nav-item" data-page="relatorios"  onclick="navTo('relatorios')"><span class="nav-icon">📄</span> Relatórios</button>
+
+        <div class="sb-footer">
+          <button class="nav-item" data-page="configuracoes" onclick="navTo('configuracoes')"><span class="nav-icon">⚙️</span> Configurações</button>
+        </div>
       </div>
     </aside>
 
-    <!-- Main -->
+    <!-- MAIN PANEL -->
     <div class="main-panel">
       <div class="main-toolbar">
-        <div id="alunosHeader">
-          <h2 class="panel-title">Selecione uma turma</h2>
-        </div>
-        <div class="toolbar-btns">
-          <button id="btnFreq" class="btn-primary gold" onclick="toggleFreqMode()" style="display:none">
-            📅 Registrar frequência
-          </button>
-          <button id="btnNovoAluno" class="btn-primary" onclick="openNewAluno()" style="display:none">
-            + Aluno
-          </button>
+        <span id="pageTitle" style="font-family:'Instrument Serif',serif;font-size:19px">Dashboard</span>
+        <div class="toolbar-right" id="toolbarRight">
+          <!-- dynamic buttons injected by pages -->
         </div>
       </div>
 
-      <!-- Freq bar -->
-      <div id="freqBar" class="freq-bar">
-        <span class="freq-bar-left">📋 Marque a frequência de hoje</span>
-        <div class="freq-bar-right">
-          <button class="btn-secondary sm" onclick="cancelFreq()">Cancelar</button>
-          <button id="btnSalvarFreq" class="btn-primary sm gold" onclick="salvarFrequencia()">✅ Salvar e pontuar</button>
+      <!-- ── DASHBOARD ── -->
+      <div class="page active page-body" id="pg-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="sc-label">👥 Alunos</div><div class="sc-val" id="dTotalAlunos">0</div></div>
+          <div class="stat-card"><div class="sc-label">🏫 Turmas</div><div class="sc-val" id="dTotalTurmas">0</div></div>
+          <div class="stat-card"><div class="sc-label">🏆 Grupos</div><div class="sc-val" id="dTotalGrupos">0</div></div>
+          <div class="stat-card"><div class="sc-label">📅 Frequência</div><div class="sc-val" id="dFreqGeral">—</div></div>
+          <div class="stat-card"><div class="sc-label">⭐ Estrelas</div><div class="sc-val" id="dEstrelas">0</div></div>
+          <div class="stat-card"><div class="sc-label">🎁 Recompensas</div><div class="sc-val" id="dRecomp">0</div></div>
+        </div>
+        <div class="charts-row">
+          <div class="chart-box"><h4>⭐ Estrelas por Grupo</h4><canvas id="cGrupos"></canvas></div>
+          <div class="chart-box"><h4>📅 Frequência Geral</h4><canvas id="cFreq"></canvas></div>
+        </div>
+        <div class="two-col">
+          <div class="rank-box"><h4>🥇 Top 5 Alunos</h4><div id="dashRanking"></div></div>
+          <div class="rank-box" id="dashGruposRank"><h4>🏆 Grupos</h4><div id="dashGruposBody"></div></div>
         </div>
       </div>
 
-      <div id="alunosList" class="alunos-list"></div>
-    </div>
-  </div>
-</div>
+      <!-- ── TURMAS ── -->
+      <div class="page page-body" id="pg-turmas">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+          <button class="btn primary" onclick="openNewTurma()">+ Nova Turma</button>
+        </div>
+        <div id="turmasList"></div>
+      </div>
 
-<!-- ████  MODAIS  ████ -->
+      <!-- ── GRUPOS ── -->
+      <div class="page page-body" id="pg-grupos">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+          <button class="btn primary" onclick="openNewGrupo()">+ Novo Grupo</button>
+        </div>
+        <div class="groups-grid" id="gruposList"></div>
+      </div>
+
+      <!-- ── ALUNOS ── -->
+      <div class="page page-body" id="pg-alunos">
+        <div style="display:flex;justify-content:space-between;margin-bottom:14px;gap:8px;flex-wrap:wrap;align-items:center">
+          <div class="filter-row" style="margin:0;flex:1">
+            <input id="searchAluno" class="finput" style="max-width:220px;margin:0" placeholder="🔍 Buscar aluno ou ID…" oninput="renderAlunos()">
+            <select id="fAlTurma" class="finput" style="max-width:160px;margin:0" onchange="renderAlunos()"></select>
+            <select id="fAlGrupo" class="finput" style="max-width:160px;margin:0" onchange="renderAlunos()"></select>
+          </div>
+          <button class="btn primary" onclick="openNewAluno()">+ Novo Aluno</button>
+        </div>
+        <div id="alunosList"></div>
+      </div>
+
+      <!-- ── FREQUÊNCIA ── -->
+      <div class="page page-body" id="pg-frequencia">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+          <select id="freqTurma" class="finput" style="width:200px;margin:0" onchange="renderFreqList()"></select>
+          <input id="freqData" type="date" class="finput" style="width:160px;margin:0">
+          <button class="btn gold" onclick="salvarFreq()">💾 Salvar Frequência</button>
+        </div>
+        <div id="freqSummary" class="freq-summary"></div>
+        <div id="freqList"></div>
+      </div>
+
+      <!-- ── ESTRELAS ── -->
+      <div class="page page-body" id="pg-estrelas">
+        <h3 style="font-family:'Instrument Serif',serif;font-size:16px;margin-bottom:12px">Ranking de Grupos</h3>
+        <div class="groups-grid" id="estGrupos" style="margin-bottom:22px"></div>
+        <h3 style="font-family:'Instrument Serif',serif;font-size:16px;margin-bottom:12px">Ranking Individual</h3>
+        <div id="estIndiv"></div>
+      </div>
+
+      <!-- ── DESAFIOS ── -->
+      <div class="page page-body" id="pg-desafios">
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:14px">
+          <button class="btn primary" onclick="openNewDesafio()">+ Novo Desafio</button>
+        </div>
+        <div id="desafiosList"></div>
+      </div>
+
+      <!-- ── KAHOOT ── -->
+      <div class="page page-body" id="pg-kahoot">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+          <button class="btn primary" onclick="openNewKahoot()">+ Resultado</button>
+        </div>
+        <div class="card-item" style="margin-bottom:14px;flex-wrap:wrap;gap:10px">
+          <span style="font-size:18px">🥇</span><span>1º — 🍫 Barra de chocolate</span>
+          <span style="font-size:18px">🥈</span><span>2º — 🍬🍬 2 bombons</span>
+          <span style="font-size:18px">🥉</span><span>3º — 🍬 1 bombom</span>
+          <span style="font-size:12px;color:var(--t3)">(Freq. mínima configurável)</span>
+        </div>
+        <div id="kahootList"></div>
+      </div>
+
+      <!-- ── RECOMPENSAS ── -->
+      <div class="page page-body" id="pg-recompensas">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+          <button class="btn primary" onclick="openNewRecomp()">+ Nova Recompensa</button>
+        </div>
+        <div id="recompList"></div>
+      </div>
+
+      <!-- ── METAS ── -->
+      <div class="page page-body" id="pg-metas">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+          <button class="btn primary" onclick="openNewMeta()">+ Nova Meta</button>
+        </div>
+        <div id="metasList"></div>
+      </div>
+
+      <!-- ── SWOT ── -->
+      <div class="page page-body" id="pg-swot">
+        <div class="swot-grid">
+          <div class="swot-q sq-S"><div class="swot-q-head"><span class="swot-q-title">💪 Forças</span><button class="ibtn sm" onclick="openSwot('S')">+</button></div><div id="swot_S"></div></div>
+          <div class="swot-q sq-W"><div class="swot-q-head"><span class="swot-q-title">⚠️ Fraquezas</span><button class="ibtn sm" onclick="openSwot('W')">+</button></div><div id="swot_W"></div></div>
+          <div class="swot-q sq-O"><div class="swot-q-head"><span class="swot-q-title">🌱 Oportunidades</span><button class="ibtn sm" onclick="openSwot('O')">+</button></div><div id="swot_O"></div></div>
+          <div class="swot-q sq-T"><div class="swot-q-head"><span class="swot-q-title">🔥 Ameaças</span><button class="ibtn sm" onclick="openSwot('T')">+</button></div><div id="swot_T"></div></div>
+        </div>
+      </div>
+
+      <!-- ── 5W2H ── -->
+      <div class="page page-body" id="pg-w2h">
+        <div class="w2h-header">
+          <input id="searchW2H" class="finput" style="max-width:220px;margin:0" placeholder="🔍 Buscar…" oninput="renderW2H()">
+          <select id="filterW2H" class="finput" style="width:140px;margin:0" onchange="renderW2H()">
+            <option value="">Todas</option>
+            <option value="open">Em aberto</option>
+            <option value="done">Concluídas</option>
+          </select>
+          <div class="w2h-prog-wrap">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t3)"><span>Progresso</span><span id="w2hProgLbl">0/0</span></div>
+            <div class="w2h-prog-bar"><div class="w2h-prog-fill" id="w2hProg" style="width:0"></div></div>
+          </div>
+          <button class="btn primary" onclick="openNewW2H()">+ Nova Ação</button>
+        </div>
+        <div id="w2hList"></div>
+      </div>
+
+      <!-- ── 5 PORQUÊS ── -->
+      <div class="page page-body" id="pg-porques">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+          <button class="btn primary" onclick="openNewPorque()">+ Nova Análise</button>
+        </div>
+        <div id="porquesList"></div>
+      </div>
+
+      <!-- ── RANKING ── -->
+      <div class="page page-body" id="pg-ranking">
+        <h3 style="font-family:'Instrument Serif',serif;font-size:16px;margin-bottom:12px">🥇 Ranking Individual</h3>
+        <div id="rankIndiv" style="margin-bottom:22px"></div>
+        <h3 style="font-family:'Instrument Serif',serif;font-size:16px;margin-bottom:12px">🏆 Ranking de Grupos</h3>
+        <div class="rank-box" style="max-width:400px"><div id="rankGrupos"></div></div>
+      </div>
+
+      <!-- ── RELATÓRIOS ── -->
+      <div class="page page-body" id="pg-relatorios">
+        <div class="relat-grid">
+          <div class="relat-card" onclick="gerarRelatorio('geral')"><div class="rc-icon">📊</div><h4>Geral</h4><p>Alunos, grupos e estrelas</p></div>
+          <div class="relat-card" onclick="gerarRelatorio('frequencia')"><div class="rc-icon">📅</div><h4>Frequência</h4><p>Presenças e faltas</p></div>
+          <div class="relat-card" onclick="gerarRelatorio('estrelas')"><div class="rc-icon">⭐</div><h4>Estrelas</h4><p>Rankings e pontuação</p></div>
+          <div class="relat-card" onclick="gerarRelatorio('kahoot')"><div class="rc-icon">🎮</div><h4>Kahoot</h4><p>Resultados e prêmios</p></div>
+          <div class="relat-card" onclick="gerarRelatorio('metas')"><div class="rc-icon">🎯</div><h4>Metas</h4><p>Status e progresso</p></div>
+          <div class="relat-card" onclick="exportCSV()"><div class="rc-icon">📥</div><h4>Exportar CSV</h4><p>Todos os alunos</p></div>
+        </div>
+      </div>
+
+      <!-- ── CONFIGURAÇÕES ── -->
+      <div class="page page-body" id="pg-configuracoes">
+        <div class="cfg-section">
+          <h4>🎨 Identidade Visual</h4>
+          <div class="cfg-row"><div class="cfg-label">Nome da plataforma</div><input id="cfgNomePlat" class="finput cfg-val" style="width:160px"></div>
+          <div class="cfg-row"><div class="cfg-label">Cor principal</div><input id="cfgCor1" type="color" class="finput cfg-val" style="width:60px;height:36px;padding:2px"></div>
+          <div class="cfg-row"><div class="cfg-label">Cor de destaque (estrelas)</div><input id="cfgCor2" type="color" class="finput cfg-val" style="width:60px;height:36px;padding:2px"></div>
+        </div>
+        <div class="cfg-section">
+          <h4>⭐ Pontuação por Frequência</h4>
+          <div class="cfg-row"><div class="cfg-label">✅ Presença<small>Estrelas por presença</small></div><input id="cfgPresenca" type="number" class="finput cfg-val"></div>
+          <div class="cfg-row"><div class="cfg-label">🤝 Participação<small>Bônus participação</small></div><input id="cfgPartic" type="number" class="finput cfg-val"></div>
+          <div class="cfg-row"><div class="cfg-label">⏰ Atraso<small>Pode ser negativo</small></div><input id="cfgAtraso" type="number" class="finput cfg-val"></div>
+          <div class="cfg-row"><div class="cfg-label">❌ Falta<small>Pode ser negativo</small></div><input id="cfgFalta" type="number" class="finput cfg-val"></div>
+          <div class="cfg-row"><div class="cfg-label">🎯 Bônus sala 100%<small>Toda turma presente</small></div><input id="cfgBonus100" type="number" class="finput cfg-val"></div>
+        </div>
+        <div class="cfg-section">
+          <h4>🎮 Kahoot & Metas</h4>
+          <div class="cfg-row"><div class="cfg-label">Frequência mínima Kahoot (%)<small>Para ser elegível ao prêmio</small></div><input id="cfgKFreq" type="number" class="finput cfg-val"></div>
+          <div class="cfg-row"><div class="cfg-label">Meta de estrelas mensal<small>Por aluno</small></div><input id="cfgMetaEst" type="number" class="finput cfg-val"></div>
+        </div>
+        <button class="btn gold" onclick="saveConfig()">💾 Salvar Configurações</button>
+      </div>
+
+    </div><!-- /main-panel -->
+  </div><!-- /app-body -->
+</div><!-- /app -->
+
+<!-- ████████  MODAIS  ████████ -->
 
 <!-- Turma -->
-<div class="modal-overlay" id="modalTurma">
-  <div class="modal">
-    <div class="modal-head">
-      <h3 id="modalTurmaTitle">Nova turma</h3>
-      <button class="modal-close" onclick="closeModal('modalTurma')">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="fgroup">
-        <label class="flabel" for="tNome">Nome da turma</label>
-        <input id="tNome" class="finput" placeholder="Ex: 3º Ano A">
-        <div class="err-msg" id="err_tNome"></div>
-      </div>
-      <div class="fgroup">
-        <label class="flabel" for="tAno">Ano letivo</label>
-        <input id="tAno" class="finput" placeholder="Ex: 2025">
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn-secondary" onclick="closeModal('modalTurma')">Cancelar</button>
-      <button id="btnSaveTurma" class="btn-primary" onclick="saveTurma()">Salvar</button>
+<div class="modal-overlay" id="mTurma">
+  <div class="modal"><div class="m-head"><h3 id="mTurmaTitle">Nova Turma</h3><button class="m-close" onclick="closeM('mTurma')">✕</button></div>
+  <div class="m-body"><input type="hidden" id="ftId">
+    <div class="fgroup"><label class="flabel">Nome</label><input id="ftNome" class="finput" placeholder="Ex: 3º Ano A"><div class="err-msg" id="err_ftNome"></div></div>
+    <div class="form-row">
+      <div class="fgroup"><label class="flabel">Ano Letivo</label><input id="ftAno" class="finput" placeholder="2025"></div>
+      <div class="fgroup"><label class="flabel">Código</label><input id="ftCodigo" class="finput" placeholder="A01"></div>
     </div>
   </div>
+  <div class="m-foot"><button class="btn outline" onclick="closeM('mTurma')">Cancelar</button><button class="btn primary" onclick="saveTurma()">Salvar</button></div></div>
+</div>
+
+<!-- Grupo -->
+<div class="modal-overlay" id="mGrupo">
+  <div class="modal"><div class="m-head"><h3 id="mGrupoTitle">Novo Grupo</h3><button class="m-close" onclick="closeM('mGrupo')">✕</button></div>
+  <div class="m-body"><input type="hidden" id="fgId">
+    <div class="fgroup"><label class="flabel">Nome</label><input id="fgNome" class="finput" placeholder="Ex: Grupo Águia"><div class="err-msg" id="err_fgNome"></div></div>
+    <div class="fgroup"><label class="flabel">Cor</label><input id="fgCor" type="color" class="finput" value="#C9953A" style="height:44px"></div>
+  </div>
+  <div class="m-foot"><button class="btn outline" onclick="closeM('mGrupo')">Cancelar</button><button class="btn primary" onclick="saveGrupo()">Salvar</button></div></div>
 </div>
 
 <!-- Aluno -->
-<div class="modal-overlay" id="modalAluno">
-  <div class="modal">
-    <div class="modal-head">
-      <h3 id="modalAlunoTitle">Novo aluno</h3>
-      <button class="modal-close" onclick="closeModal('modalAluno')">✕</button>
+<div class="modal-overlay" id="mAluno">
+  <div class="modal wide"><div class="m-head"><h3 id="mAlunoTitle">Novo Aluno</h3><button class="m-close" onclick="closeM('mAluno')">✕</button></div>
+  <div class="m-body"><input type="hidden" id="faId">
+    <div class="form-row">
+      <div class="fgroup"><label class="flabel">Nome completo</label><input id="faNome" class="finput" placeholder="Ana Lima"><div class="err-msg" id="err_faNome"></div></div>
+      <div class="fgroup"><label class="flabel">E-mail</label><input id="faEmail" type="email" class="finput" placeholder="aluno@escola.com"></div>
     </div>
-    <div class="modal-body">
-      <div class="fgroup">
-        <label class="flabel" for="aNome">Nome do aluno</label>
-        <input id="aNome" class="finput" placeholder="Ex: Ana Lima">
-        <div class="err-msg" id="err_aNome"></div>
-      </div>
+    <div class="form-row">
+      <div class="fgroup"><label class="flabel">Telefone</label><input id="faTel" class="finput" placeholder="(11) 99999-9999"></div>
     </div>
-    <div class="modal-foot">
-      <button class="btn-secondary" onclick="closeModal('modalAluno')">Cancelar</button>
-      <button id="btnSaveAluno" class="btn-primary" onclick="saveAluno()">Salvar</button>
+    <div class="form-row">
+      <div class="fgroup"><label class="flabel">Turma</label><select id="faTurma" class="finput"></select></div>
+      <div class="fgroup"><label class="flabel">Grupo</label><select id="faGrupo" class="finput"></select></div>
     </div>
   </div>
+  <div class="m-foot"><button class="btn outline" onclick="closeM('mAluno')">Cancelar</button><button class="btn primary" onclick="saveAluno()">Salvar</button></div></div>
 </div>
 
-<!-- Config -->
-<div class="modal-overlay" id="modalConfig">
-  <div class="modal">
-    <div class="modal-head">
-      <h3>⚙️ Pontuação</h3>
-      <button class="modal-close" onclick="closeModal('modalConfig')">✕</button>
+<!-- Desafio -->
+<div class="modal-overlay" id="mDesafio">
+  <div class="modal"><div class="m-head"><h3 id="mDesafioTitle">Novo Desafio</h3><button class="m-close" onclick="closeM('mDesafio')">✕</button></div>
+  <div class="m-body"><input type="hidden" id="fdId">
+    <div class="fgroup"><label class="flabel">Nome do desafio</label><input id="fdNome" class="finput" placeholder="Ex: Chegar no horário"><div class="err-msg" id="err_fdNome"></div></div>
+    <div class="fgroup"><label class="flabel">Descrição</label><input id="fdDesc" class="finput" placeholder="Opcional"></div>
+    <div class="fgroup"><label class="flabel">Estrelas ao completar</label><input id="fdPts" type="number" class="finput" value="5"></div>
+  </div>
+  <div class="m-foot"><button class="btn outline" onclick="closeM('mDesafio')">Cancelar</button><button class="btn primary" onclick="saveDesafio()">Salvar</button></div></div>
+</div>
+
+<!-- Registrar desafio -->
+<div class="modal-overlay" id="mRegDesafio">
+  <div class="modal"><div class="m-head"><h3>Registrar Desafio</h3><button class="m-close" onclick="closeM('mRegDesafio')">✕</button></div>
+  <div class="m-body">
+    <input type="hidden" id="frDesafioId">
+    <p style="font-size:13px;color:var(--t2);margin-bottom:14px">Desafio: <b id="mRegDesafioNome"></b></p>
+    <div class="fgroup"><label class="flabel">Aluno</label><select id="frDesafioAluno" class="finput"></select></div>
+  </div>
+  <div class="m-foot"><button class="btn outline" onclick="closeM('mRegDesafio')">Cancelar</button><button class="btn gold" onclick="confirmarDesafio()">✅ Confirmar</button></div></div>
+</div>
+
+<!-- Kahoot -->
+<div class="modal-overlay" id="mKahoot">
+  <div class="modal"><div class="m-head"><h3>Resultado Kahoot</h3><button class="m-close" onclick="closeM('mKahoot')">✕</button></div>
+  <div class="m-body">
+    <div class="fgroup"><label class="flabel">Aluno</label><select id="fkAluno" class="finput"></select></div>
+    <div class="form-row">
+      <div class="fgroup"><label class="flabel">Colocação</label><select id="fkPos" class="finput"><option value="1">🥇 1º</option><option value="2">🥈 2º</option><option value="3">🥉 3º</option></select></div>
+      <div class="fgroup"><label class="flabel">Frequência (%)</label><input id="fkFreq" type="number" class="finput" min="0" max="100"></div>
     </div>
-    <div class="modal-body">
-      <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6">
-        Defina quantas estrelas cada status de frequência vale ao salvar.
-      </p>
-      <div class="cfg-row">
-        <div class="cfg-label">✅ Presença<small>Estrelas por presença</small></div>
-        <input id="cfgPresenca" type="number" class="finput cfg-input" value="5">
-      </div>
-      <div class="cfg-row">
-        <div class="cfg-label">⏰ Atraso<small>Pode ser negativo</small></div>
-        <input id="cfgAtraso" type="number" class="finput cfg-input" value="-1">
-      </div>
-      <div class="cfg-row">
-        <div class="cfg-label">❌ Falta<small>Pode ser negativo</small></div>
-        <input id="cfgFalta" type="number" class="finput cfg-input" value="-2">
-      </div>
-      <div class="cfg-row">
-        <div class="cfg-label">🎯 Bônus 100%<small>Toda a turma presente</small></div>
-        <input id="cfgBonus100" type="number" class="finput cfg-input" value="3">
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn-secondary" onclick="closeModal('modalConfig')">Cancelar</button>
-      <button class="btn-primary" onclick="saveConfig()">Salvar</button>
+    <div class="fgroup"><label class="flabel">Data</label><input id="fkData" type="date" class="finput"></div>
+  </div>
+  <div class="m-foot"><button class="btn outline" onclick="closeM('mKahoot')">Cancelar</button><button class="btn primary" onclick="saveKahoot()">Registrar</button></div></div>
+</div>
+
+<!-- Recompensa -->
+<div class="modal-overlay" id="mRecomp">
+  <div class="modal"><div class="m-head"><h3 id="mRecompTitle">Nova Recompensa</h3><button class="m-close" onclick="closeM('mRecomp')">✕</button></div>
+  <div class="m-body"><input type="hidden" id="frId">
+    <div class="fgroup"><label class="flabel">Nome</label><input id="frNome" class="finput" placeholder="Ex: Bombom"><div class="err-msg" id="err_frNome"></div></div>
+    <div class="fgroup"><label class="flabel">Descrição</label><input id="frDesc" class="finput"></div>
+    <div class="form-row">
+      <div class="fgroup"><label class="flabel">⭐ Necessárias</label><input id="frEst" type="number" class="finput"></div>
+      <div class="fgroup"><label class="flabel">Estoque</label><input id="frEstq" type="number" class="finput" placeholder="Em branco = ∞"></div>
     </div>
   </div>
+  <div class="m-foot"><button class="btn outline" onclick="closeM('mRecomp')">Cancelar</button><button class="btn primary" onclick="saveRecomp()">Salvar</button></div></div>
 </div>
 
-<!-- Toast -->
+<!-- Meta -->
+<div class="modal-overlay" id="mMeta">
+  <div class="modal wide"><div class="m-head"><h3 id="mMetaTitle">Nova Meta</h3><button class="m-close" onclick="closeM('mMeta')">✕</button></div>
+  <div class="m-body"><input type="hidden" id="fmId">
+    <div class="fgroup"><label class="flabel">Nome da meta</label><input id="fmNome" class="finput"><div class="err-msg" id="err_fmNome"></div></div>
+    <div class="form-row">
+      <div class="fgroup"><label class="flabel">Responsável</label><input id="fmResp" class="finput"></div>
+      <div class="fgroup"><label class="flabel">Prazo</label><input id="fmPrazo" type="date" class="finput"></div>
+    </div>
+    <div class="form-row">
+      <div class="fgroup"><label class="flabel">Status</label><select id="fmStatus" class="finput"><option value="pendente">Pendente</option><option value="andamento">Em andamento</option><option value="concluida">Concluída</option></select></div>
+      <div class="fgroup"><label class="flabel">Progresso %</label><input id="fmProg" type="number" min="0" max="100" class="finput" value="0"></div>
+    </div>
+    <div class="fgroup"><label class="flabel">Observações</label><textarea id="fmObs" class="finput" rows="2"></textarea></div>
+  </div>
+  <div class="m-foot"><button class="btn outline" onclick="closeM('mMeta')">Cancelar</button><button class="btn primary" onclick="saveMeta()">Salvar</button></div></div>
+</div>
+
+<!-- SWOT -->
+<div class="modal-overlay" id="mSwot">
+  <div class="modal"><div class="m-head"><h3>Adicionar Item SWOT</h3><button class="m-close" onclick="closeM('mSwot')">✕</button></div>
+  <div class="m-body"><input type="hidden" id="fsQ">
+    <div class="fgroup"><label class="flabel">Texto</label><textarea id="fsTxt" class="finput" rows="3" placeholder="Descreva o item…"></textarea><div class="err-msg" id="err_fsTxt"></div></div>
+  </div>
+  <div class="m-foot"><button class="btn outline" onclick="closeM('mSwot')">Cancelar</button><button class="btn primary" onclick="saveSwot()">Adicionar</button></div></div>
+</div>
+
+<!-- 5W2H -->
+<div class="modal-overlay" id="mW2H">
+  <div class="modal wide"><div class="m-head"><h3>Ação 5W2H</h3><button class="m-close" onclick="closeM('mW2H')">✕</button></div>
+  <div class="m-body"><input type="hidden" id="fwId">
+    <div class="form-row">
+      <div class="fgroup"><label class="flabel">O quê? (What)</label><input id="fwWhat" class="finput"><div class="err-msg" id="err_fwWhat"></div></div>
+      <div class="fgroup"><label class="flabel">Por quê? (Why)</label><input id="fwWhy" class="finput"></div>
+    </div>
+    <div class="form-row">
+      <div class="fgroup"><label class="flabel">Quem? (Who)</label><input id="fwWho" class="finput"></div>
+      <div class="fgroup"><label class="flabel">Onde? (Where)</label><input id="fwWhere" class="finput"></div>
+    </div>
+    <div class="form-row">
+      <div class="fgroup"><label class="flabel">Quando? (When)</label><input id="fwWhen" type="date" class="finput"></div>
+      <div class="fgroup"><label class="flabel">Como? (How)</label><input id="fwHow" class="finput"></div>
+    </div>
+    <div class="fgroup"><label class="flabel">Quanto custa? (How Much)</label><input id="fwHM" class="finput"></div>
+  </div>
+  <div class="m-foot"><button class="btn outline" onclick="closeM('mW2H')">Cancelar</button><button class="btn primary" onclick="saveW2H()">Salvar</button></div></div>
+</div>
+
+<!-- 5 Porquês -->
+<div class="modal-overlay" id="mPorque">
+  <div class="modal wide"><div class="m-head"><h3>5 Porquês</h3><button class="m-close" onclick="closeM('mPorque')">✕</button></div>
+  <div class="m-body"><input type="hidden" id="fpId">
+    <div class="fgroup"><label class="flabel">Problema</label><input id="fpProb" class="finput"><div class="err-msg" id="err_fpProb"></div></div>
+    <div class="fgroup"><label class="flabel">Por quê 1?</label><input id="fp1" class="finput"></div>
+    <div class="fgroup"><label class="flabel">Por quê 2?</label><input id="fp2" class="finput"></div>
+    <div class="fgroup"><label class="flabel">Por quê 3?</label><input id="fp3" class="finput"></div>
+    <div class="fgroup"><label class="flabel">Por quê 4?</label><input id="fp4" class="finput"></div>
+    <div class="fgroup"><label class="flabel">Por quê 5?</label><input id="fp5" class="finput"></div>
+    <div class="fgroup"><label class="flabel">✅ Causa Raiz (Conclusão)</label><textarea id="fpCausa" class="finput" rows="2"></textarea></div>
+  </div>
+  <div class="m-foot"><button class="btn outline" onclick="closeM('mPorque')">Cancelar</button><button class="btn primary" onclick="savePorque()">Salvar</button></div></div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
-// Show demo banner if needed + set avatar initials
-document.addEventListener('DOMContentLoaded', () => {
-  // Tab enter key
-  document.getElementById('panel_register')?.querySelectorAll('input').forEach(inp => {
-    inp.addEventListener('keydown', e => { if(e.key==='Enter') doRegister(); });
-  });
-  document.getElementById('panel_login')?.querySelectorAll('input').forEach(inp => {
-    inp.addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
-  });
-});
-
-// Update avatar initials when name is set
-const _origBoot = window.bootApp;
-// patch after module loads
+// Show demo banner after firebase module runs
 setTimeout(() => {
-  const nameEl = document.getElementById('userNameDisplay');
-  const avEl   = document.getElementById('userAv');
-  if (nameEl && avEl) {
-    const obs = new MutationObserver(() => {
-      const name = nameEl.textContent || '?';
-      avEl.textContent = name.split(' ').slice(0,2).map(w=>w[0]?.toUpperCase()||'').join('');
-    });
-    obs.observe(nameEl, { childList: true, characterData: true, subtree: true });
-  }
-  // Show demo banner
-  const DEMO_CHECK = document.querySelector('script[type="module"]');
-}, 100);
+  const ok = typeof window.__FB_OK !== 'undefined' ? window.__FB_OK : true;
+  // Check if firebase is configured by looking at syncDot
+}, 200);
 </script>
 </body>
 </html>
