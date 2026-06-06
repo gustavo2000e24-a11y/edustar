@@ -9,37 +9,31 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-<script type="module">
-import { initializeApp }                                       from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword,
-         signInWithEmailAndPassword, signOut,
-         onAuthStateChanged, updateProfile }                   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, doc, setDoc, getDoc,
-         getDocs, deleteDoc, updateDoc, onSnapshot,
-         query, orderBy, serverTimestamp, increment,
-         writeBatch }                                          from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-
-/* ════════════════════════════════════════════
+<script>
+/* ════════════════════════════════════════
    🔥 CONFIGURE SEU FIREBASE AQUI
-   ─────────────────────────────────────────
-   PASSO 1: console.firebase.google.com
-   PASSO 2: Criar projeto gratuito (Spark)
-   PASSO 3: Adicionar app Web → copiar config
-   PASSO 4: Authentication → E-mail/Senha → Ativar
-   PASSO 5: Firestore Database → Criar banco
-            → Selecionar "Modo de teste"
-   PASSO 6: Firestore → Regras → Publicar:
-     rules_version = '2';
-     service cloud.firestore {
-       match /databases/{database}/documents {
-         match /users/{userId}/{document=**} {
-           allow read, write: if request.auth != null
-             && request.auth.uid == userId;
-         }
+   1. console.firebase.google.com → novo projeto
+   2. Adicionar app Web → copiar firebaseConfig
+   3. Authentication → E-mail/Senha → Ativar
+   4. Firestore Database → Criar → Modo teste
+   5. Firestore → Regras → colar e publicar:
+
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /schools/{schoolId} {
+         allow read, write: if request.auth != null &&
+           request.auth.uid in resource.data.members;
+         allow create: if request.auth != null;
+       }
+       match /schools/{schoolId}/data/{doc} {
+         allow read, write: if request.auth != null &&
+           get(/databases/$(database)/documents/schools/$(schoolId))
+             .data.members.hasAny([request.auth.uid]);
        }
      }
-   PASSO 7: Cole os valores abaixo e salve
-════════════════════════════════════════════ */
+   }
+════════════════════════════════════════ */
 const firebaseConfig = {
   apiKey:            "COLE_AQUI",
   authDomain:        "COLE_AQUI",
@@ -49,249 +43,368 @@ const firebaseConfig = {
   appId:             "COLE_AQUI"
 };
 
-const FB_OK = !firebaseConfig.apiKey.includes('COLE_AQUI');
-let app, auth, db;
-if (FB_OK) {
-  app  = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db   = getFirestore(app);
-}
-
-/* ═══ LOCAL STORAGE (demo/fallback) ═══ */
+/* ══════════════════════════════════════
+   ESTADO GLOBAL
+══════════════════════════════════════ */
 const LS = {
   g: k => { try { return JSON.parse(localStorage.getItem('es_'+k)); } catch { return null; } },
   s: (k,v) => localStorage.setItem('es_'+k, JSON.stringify(v)),
   d: k => localStorage.removeItem('es_'+k)
 };
 
-/* ═══ STATE ═══ */
-let USER = null;
-let DATA = {}; // turmas, grupos, alunos, config, recompensas, desafios, kahoot, metas, swot, w2h, porques
-let unsubFn = null;
-let activePage = 'dashboard';
-let activeTurmaId = null;
-let activeGrupoId = null;
-let charts = {};
+let USER       = null;   // { uid, nome, email, schoolId, schoolNome, isOwner }
+let DATA       = {};
+let unsubFn    = null;
+let activePage = 'dashboard', activeTurmaId = null, charts = {};
+let _registering = false, _appStarted = false;
+let fbAuth = null, fbDB = null;
+const FB_OK = !firebaseConfig.apiKey.includes('COLE_AQUI');
 
-/* ═══ BOOT ═══ */
-// Impede que onAuthStateChanged entre no meio do registro
-let _registering = false;
-let _appStarted  = false;
-
-window.addEventListener('DOMContentLoaded', () => {
-  showAuth(); // começa sempre na tela de login
+/* ══════════════════════════════════════
+   BOOT
+══════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', async () => {
+  showAuth();
 
   if (!FB_OK) {
-    showBanner('⚠️ Firebase não configurado — dados salvos localmente');
+    showBanner('⚠️ Firebase não configurado — dados salvos localmente neste navegador');
     const u = LS.g('user');
     if (u) startApp(u);
     return;
   }
 
-  onAuthStateChanged(auth, async fbUser => {
-    if (_registering) return; // aguarda o registro terminar
-    if (fbUser) {
-      await fbUser.reload().catch(() => {});
-      const nome = auth.currentUser?.displayName || fbUser.displayName || fbUser.email.split('@')[0];
-      startApp({ uid: fbUser.uid, nome, email: fbUser.email });
-    } else {
-      showAuth();
-    }
-  });
+  try {
+    const [
+      { initializeApp },
+      { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+        signOut, onAuthStateChanged, updateProfile },
+      { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion, onSnapshot }
+    ] = await Promise.all([
+      import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'),
+      import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js'),
+    ]);
+
+    const app = initializeApp(firebaseConfig);
+    fbAuth = getAuth(app);
+    fbDB   = getFirestore(app);
+
+    window._fb = { doc, setDoc, getDoc, updateDoc, arrayUnion,
+                   onSnapshot, signOut, createUserWithEmailAndPassword,
+                   signInWithEmailAndPassword, updateProfile, onAuthStateChanged };
+
+    onAuthStateChanged(fbAuth, async fbUser => {
+      if (_registering) return;
+      if (fbUser) {
+        await fbUser.reload().catch(()=>{});
+        const nome = fbAuth.currentUser?.displayName || fbUser.displayName || fbUser.email.split('@')[0];
+        // Verificar se usuário já tem escola associada
+        const saved = LS.g('user_'+fbUser.uid);
+        if (saved?.schoolId) {
+          startApp({ ...saved, uid: fbUser.uid, nome });
+        } else {
+          // Mostrar tela de escola após login
+          showSchoolPicker({ uid: fbUser.uid, nome, email: fbUser.email });
+        }
+      } else {
+        showAuth();
+      }
+    });
+
+  } catch(e) {
+    console.error('Firebase error:', e);
+    showBanner('⚠️ Erro ao conectar Firebase — modo offline ativo');
+    const u = LS.g('user');
+    if (u) startApp(u);
+  }
 });
 
-/* ═══ AUTH ═══ */
-window.doLogin = async () => {
-  const email = (gi('lEmail')?.value || '').trim();
-  const pw    =  gi('lPw')?.value    || '';
+/* ══════════════════════════════════════
+   AUTH — LOGIN / REGISTRO
+══════════════════════════════════════ */
+async function doLogin() {
+  const email = (gi('lEmail')?.value||'').trim();
+  const pw    =  gi('lPw')?.value||'';
   clearErrs();
   if (!email) { setErr('lEmail','E-mail obrigatório'); return; }
-  if (!pw)    { setErr('lPw',   'Senha obrigatória');  return; }
+  if (!pw)    { setErr('lPw','Senha obrigatória');     return; }
   setBL('btnLogin', true);
   try {
-    if (!FB_OK) {
+    if (!FB_OK || !fbAuth) {
       const u = LS.g('user');
       if (u && u.email === email) startApp(u);
       else toast('Usuário não encontrado.','err');
     } else {
-      await signInWithEmailAndPassword(auth, email, pw);
-      // onAuthStateChanged chama startApp automaticamente
+      await window._fb.signInWithEmailAndPassword(fbAuth, email, pw);
     }
-  } catch(e) {
-    toast(fbErr(e),'err');
-  } finally { setBL('btnLogin', false); }
-};
+  } catch(e) { toast(fbErr(e),'err'); }
+  finally    { setBL('btnLogin', false); }
+}
 
-window.doRegister = async () => {
-  const nome  = (gi('rNome')?.value || '').trim();
-  const email = (gi('rEmail')?.value || '').trim();
-  const pw    =  gi('rPw')?.value  || '';
-  const pw2   =  gi('rPw2')?.value || '';
+async function doRegister() {
+  const nome  = (gi('rNome')?.value||'').trim();
+  const email = (gi('rEmail')?.value||'').trim();
+  const pw    =  gi('rPw')?.value||'';
+  const pw2   =  gi('rPw2')?.value||'';
   clearErrs();
   let ok = true;
   if (!nome)                         { setErr('rNome','Nome obrigatório');    ok=false; }
-  if (!email || !email.includes('@')) { setErr('rEmail','E-mail inválido');    ok=false; }
+  if (!email||!email.includes('@'))  { setErr('rEmail','E-mail inválido');    ok=false; }
   if (pw.length < 6)                 { setErr('rPw','Mínimo 6 caracteres');   ok=false; }
   if (pw !== pw2)                    { setErr('rPw2','Senhas não coincidem'); ok=false; }
   if (!ok) return;
-
   setBL('btnReg', true);
   try {
-    if (!FB_OK) {
-      // Modo sem Firebase — salva localmente
-      const u = { uid: 'demo_'+uid(), nome, email };
+    if (!FB_OK || !fbAuth) {
+      const u = { uid:'demo_'+uid(), nome, email, schoolId:null };
       LS.s('user', u);
-      startApp(u);
-      return;
+      showSchoolPicker(u); return;
     }
-
-    // 1. Bloqueia o listener enquanto fazemos o registro
     _registering = true;
-
-    // 2. Cria o usuário no Firebase Auth
-    const cred = await createUserWithEmailAndPassword(auth, email, pw);
-
-    // 3. Salva o nome no perfil
-    await updateProfile(cred.user, { displayName: nome });
-
-    // 4. Recarrega para garantir que displayName está disponível
+    const cred = await window._fb.createUserWithEmailAndPassword(fbAuth, email, pw);
+    await window._fb.updateProfile(cred.user, { displayName: nome });
     await cred.user.reload();
-
-    // 5. Libera o listener e inicia o app com os dados corretos
     _registering = false;
-    startApp({ uid: cred.user.uid, nome, email });
-
+    showSchoolPicker({ uid: cred.user.uid, nome, email });
   } catch(e) {
     _registering = false;
     toast(fbErr(e),'err');
-  } finally {
-    setBL('btnReg', false);
-  }
-};
+  } finally { setBL('btnReg', false); }
+}
 
-window.doLogout = async () => {
+async function doLogout() {
   if (unsubFn) { unsubFn(); unsubFn = null; }
-  USER = null; DATA = {};
-  _appStarted = false;
+  const uid = USER?.uid;
+  USER = null; DATA = {}; _appStarted = false;
   Object.values(charts).forEach(c => { try { c.destroy(); } catch {} });
   charts = {};
-  if (!FB_OK) LS.d('user');
-  else { try { await signOut(auth); } catch {} }
+  if (uid) LS.d('user_'+uid);
+  if (!FB_OK || !fbAuth) LS.d('user');
+  else { try { await window._fb.signOut(fbAuth); } catch {} }
   showAuth();
-};
+}
 
 function fbErr(e) {
   const m = {
-    'auth/email-already-in-use':   'Este e-mail já está cadastrado.',
-    'auth/invalid-email':           'E-mail inválido.',
-    'auth/weak-password':           'Senha fraca — use pelo menos 6 caracteres.',
-    'auth/user-not-found':          'Usuário não encontrado.',
-    'auth/wrong-password':          'Senha incorreta.',
-    'auth/invalid-credential':      'E-mail ou senha incorretos.',
-    'auth/too-many-requests':       'Muitas tentativas. Aguarde alguns minutos.',
-    'auth/network-request-failed':  'Sem conexão com a internet.',
-    'auth/operation-not-allowed':   'Login por e-mail não está ativado no Firebase.',
+    'auth/email-already-in-use': 'Este e-mail já está cadastrado.',
+    'auth/invalid-email':         'E-mail inválido.',
+    'auth/weak-password':         'Senha fraca — mínimo 6 caracteres.',
+    'auth/user-not-found':        'Usuário não encontrado.',
+    'auth/wrong-password':        'Senha incorreta.',
+    'auth/invalid-credential':    'E-mail ou senha incorretos.',
+    'auth/too-many-requests':     'Muitas tentativas. Aguarde.',
+    'auth/network-request-failed':'Sem conexão com a internet.',
+    'auth/operation-not-allowed': 'Login por e-mail não ativado no Firebase.',
   };
-  return m[e.code] || ('Erro: ' + (e.message || e.code || 'desconhecido'));
+  return m[e.code] || ('Erro: '+(e.message||e.code||'desconhecido'));
 }
 
-/* ═══ START APP ═══ */
+/* ══════════════════════════════════════
+   ESCOLA — CRIAR / ENTRAR
+══════════════════════════════════════ */
+function showSchoolPicker(tempUser) {
+  // Esconde auth, mostra picker de escola
+  gi('authScreen').style.display = 'none';
+  gi('schoolScreen').style.display = 'flex';
+  gi('spNome').textContent = tempUser.nome || tempUser.email;
+  window._tempUser = tempUser;
+}
+
+async function criarEscola() {
+  const nome = (gi('spNomeEscola')?.value||'').trim();
+  if (!nome) { toast('Informe o nome da escola.','err'); return; }
+  setBL('btnCriarEscola', true);
+  try {
+    const u = window._tempUser;
+    const schoolId = 'ESC-' + uid().toUpperCase();
+    const schoolData = {
+      nome, owner: u.uid, members: [u.uid],
+      criadoEm: Date.now()
+    };
+    if (FB_OK && fbDB) {
+      const { doc, setDoc } = window._fb;
+      await setDoc(doc(fbDB, 'schools', schoolId), schoolData);
+    } else {
+      LS.s('school_'+schoolId, schoolData);
+    }
+    const user = { ...u, schoolId, schoolNome: nome, isOwner: true };
+    LS.s('user_'+u.uid, user);
+    gi('schoolScreen').style.display = 'none';
+    startApp(user);
+    toast(`🏫 Escola "${nome}" criada! Código: ${schoolId}`,'ok', 6000);
+    // Mostrar código para compartilhar
+    gi('codigoDisplay').textContent = schoolId;
+    gi('codigoBox').style.display = 'block';
+  } catch(e) {
+    toast('Erro ao criar escola: '+e.message,'err');
+  } finally { setBL('btnCriarEscola', false); }
+}
+
+async function entrarEscola() {
+  const code = (gi('spCodigo')?.value||'').trim().toUpperCase();
+  if (!code) { toast('Informe o código da escola.','err'); return; }
+  setBL('btnEntrarEscola', true);
+  try {
+    const u = window._tempUser;
+    let schoolData;
+    if (FB_OK && fbDB) {
+      const { doc, getDoc, updateDoc, arrayUnion } = window._fb;
+      const snap = await getDoc(doc(fbDB, 'schools', code));
+      if (!snap.exists()) { toast('Código inválido. Escola não encontrada.','err'); return; }
+      schoolData = snap.data();
+      // Adicionar membro
+      if (!schoolData.members.includes(u.uid)) {
+        await updateDoc(doc(fbDB, 'schools', code), { members: arrayUnion(u.uid) });
+      }
+    } else {
+      schoolData = LS.g('school_'+code);
+      if (!schoolData) { toast('Código inválido.','err'); return; }
+      if (!schoolData.members.includes(u.uid)) {
+        schoolData.members.push(u.uid);
+        LS.s('school_'+code, schoolData);
+      }
+    }
+    const user = { ...u, schoolId: code, schoolNome: schoolData.nome, isOwner: schoolData.owner===u.uid };
+    LS.s('user_'+u.uid, user);
+    gi('schoolScreen').style.display = 'none';
+    startApp(user);
+    toast(`✅ Entrou em "${schoolData.nome}"!`,'ok');
+  } catch(e) {
+    toast('Erro ao entrar: '+e.message,'err');
+  } finally { setBL('btnEntrarEscola', false); }
+}
+
+function copiarCodigo() {
+  const code = gi('codigoDisplay')?.textContent;
+  if (!code) return;
+  navigator.clipboard.writeText(code).then(()=>toast('Código copiado!','ok')).catch(()=>{});
+}
+
+function switchSchoolTab(tab) {
+  document.querySelectorAll('.school-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  document.querySelectorAll('.school-panel').forEach(p=>p.style.display='none');
+  gi('sp_'+tab).style.display = 'block';
+}
+
+/* ══════════════════════════════════════
+   INICIAR APP
+══════════════════════════════════════ */
 function startApp(user) {
-  // Evita inicialização dupla para o mesmo usuário
   if (_appStarted && USER?.uid === user.uid) return;
   _appStarted = true;
   USER = user;
-  gi('uNome').textContent = user.nome || user.email;
-  gi('uAv').textContent   = initials(user.nome || user.email);
-  gi('authScreen').style.display = 'none';
-  gi('app').style.display        = 'flex';
+  gi('uNome').textContent = user.nome||user.email;
+  gi('uAv').textContent   = initials(user.nome||user.email);
+  // Mostrar nome da escola no topbar
+  const escEl = gi('topEscola');
+  if (escEl) escEl.textContent = user.schoolNome || '';
+  gi('authScreen').style.display   = 'none';
+  gi('schoolScreen').style.display = 'none';
+  gi('app').style.display          = 'flex';
   loadData();
 }
 
 function showAuth() {
   _appStarted = false;
-  gi('authScreen').style.display = 'flex';
-  gi('app').style.display        = 'none';
+  gi('authScreen').style.display   = 'flex';
+  gi('schoolScreen').style.display = 'none';
+  gi('app').style.display          = 'none';
 }
 
-/* ═══ DATA LAYER ═══ */
-function uPath(...segs) { return ['users', USER.uid, ...segs]; }
+function switchTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  document.querySelectorAll('.auth-panel').forEach(p=>p.style.display='none');
+  const p = gi('panel_'+tab); if(p) p.style.display='block';
+  clearErrs();
+}
 
-// Debounce save to avoid flooding Firestore
-let _persistTimer = null;
-let _persistPending = false;
+document.addEventListener('keydown', e => {
+  if (e.key!=='Enter') return;
+  if (gi('authScreen')?.style.display==='none') return;
+  if (gi('panel_login')?.style.display!=='none') doLogin();
+  else if (gi('panel_register')?.style.display!=='none') doRegister();
+});
+
+/* ══════════════════════════════════════
+   DATA LAYER — compartilhado por escola
+══════════════════════════════════════ */
+function schoolDocPath() {
+  // Dados compartilhados ficam em schools/{schoolId}/data/main
+  return ['schools', USER.schoolId, 'data', 'main'];
+}
+
+let _persistTimer = null, _persistPending = false;
 
 async function loadData() {
-  if (!FB_OK) {
-    DATA = LS.g('data_'+USER.uid) || defaultData();
-    // Migrate: ensure config has new fields
+  // Fallback offline
+  if (!FB_OK || !fbDB || !USER.schoolId) {
+    const key = 'data_'+(USER.schoolId||USER.uid);
+    DATA = LS.g(key) || defaultData();
     DATA.config = { ...defaultData().config, ...DATA.config };
-    renderAll();
-    return;
+    renderAll(); return;
   }
-  setSyncLabel('Carregando…', 'loading');
+  setSyncLabel('Carregando…','loading');
   try {
-    const snap = await getDoc(doc(db, ...uPath('meta','main')));
+    const { doc, getDoc, onSnapshot } = window._fb;
+    const ref  = doc(fbDB, ...schoolDocPath());
+    const snap = await getDoc(ref);
     if (snap.exists()) {
       const remote = snap.data();
       DATA = { ...defaultData() };
-      // Deep merge arrays and config
-      for (const key of Object.keys(DATA)) {
-        if (key === 'config') DATA.config = { ...defaultData().config, ...(remote.config||{}) };
-        else if (Array.isArray(DATA[key])) DATA[key] = Array.isArray(remote[key]) ? remote[key] : [];
+      for (const k of Object.keys(DATA)) {
+        if (k==='config') DATA.config = { ...defaultData().config, ...(remote.config||{}) };
+        else if (Array.isArray(DATA[k])) DATA[k] = Array.isArray(remote[k]) ? remote[k] : [];
       }
     } else {
       DATA = defaultData();
     }
   } catch(e) {
-    console.warn('Firestore load error:', e);
-    DATA = LS.g('data_'+USER.uid) || defaultData();
-    setSyncLabel('Offline', 'warn');
+    console.warn('loadData error:', e);
+    DATA = LS.g('data_'+USER.schoolId) || defaultData();
+    setSyncLabel('Offline','warn');
   }
   renderAll();
-  // Real-time listener
+  // Listener em tempo real — todos os membros recebem updates
   if (unsubFn) unsubFn();
+  const { doc, onSnapshot } = window._fb;
   unsubFn = onSnapshot(
-    doc(db, ...uPath('meta','main')),
+    doc(fbDB, ...schoolDocPath()),
     snap => {
-      if (_persistPending) return; // skip if we're mid-save
+      if (_persistPending) return;
       if (snap.exists()) {
         const remote = snap.data();
         DATA = { ...defaultData() };
-        for (const key of Object.keys(DATA)) {
-          if (key === 'config') DATA.config = { ...defaultData().config, ...(remote.config||{}) };
-          else if (Array.isArray(DATA[key])) DATA[key] = Array.isArray(remote[key]) ? remote[key] : [];
+        for (const k of Object.keys(DATA)) {
+          if (k==='config') DATA.config = { ...defaultData().config, ...(remote.config||{}) };
+          else if (Array.isArray(DATA[k])) DATA[k] = Array.isArray(remote[k]) ? remote[k] : [];
         }
         renderAll();
       }
     },
-    err => { console.warn('Snapshot error:', err); setSyncLabel('Offline', 'warn'); }
+    err => { console.warn('snapshot err:', err); setSyncLabel('Offline','warn'); }
   );
 }
 
 async function persist() {
-  // Always save locally first
-  LS.s('data_'+USER.uid, DATA);
-  if (!FB_OK) return;
-
+  const key = 'data_'+(USER.schoolId||USER.uid);
+  LS.s(key, DATA);
+  if (!FB_OK || !fbDB || !USER.schoolId) return;
   _persistPending = true;
   clearTimeout(_persistTimer);
-  setSyncLabel('Salvando…', 'saving');
-
+  setSyncLabel('Salvando…','saving');
   _persistTimer = setTimeout(async () => {
     try {
-      // Firestore has a 1MB document limit — sanitize before saving
-      const payload = JSON.parse(JSON.stringify(DATA)); // deep clone & strip undefined
-      await setDoc(doc(db, ...uPath('meta','main')), payload);
+      const { doc, setDoc } = window._fb;
+      const payload = JSON.parse(JSON.stringify(DATA));
+      await setDoc(doc(fbDB, ...schoolDocPath()), payload);
       setSyncOk();
     } catch(e) {
-      console.error('Persist error:', e);
-      if (e.code === 'permission-denied') toast('❌ Permissão negada. Verifique as regras do Firestore.','err',5000);
-      else if (e.code === 'unavailable')  toast('📵 Sem conexão — salvo localmente.','warn');
-      else toast('Erro ao salvar na nuvem: '+e.code,'err');
-      setSyncLabel('Erro', 'warn');
+      if (e.code==='permission-denied') toast('❌ Permissão negada. Verifique as regras do Firestore.','err',5000);
+      else if (e.code==='unavailable')  toast('📵 Sem conexão — salvo localmente.','warn');
+      else toast('Erro ao salvar: '+e.code,'err');
+      setSyncLabel('Erro','warn');
     } finally { _persistPending = false; }
-  }, 600); // debounce 600ms
+  }, 600);
 }
 
 function setSyncOk() {
@@ -372,7 +485,9 @@ window.navTo = function(page) {
 
 function renderAll() {
   applyTheme();
-  gi('platNome').textContent = DATA.config?.nomePlat || 'EduStar';
+  const nome = DATA.config?.nomePlat || 'EduStar';
+  document.querySelectorAll('.plat-nome').forEach(e => e.textContent = nome);
+  document.title = nome;
   renderPage(activePage);
 }
 
@@ -1232,14 +1347,17 @@ function hexNorm(c) {
   return '#' + m.slice(0,3).map(n=>parseInt(n).toString(16).padStart(2,'0')).join('');
 }
 
+// Expor funções no escopo global para os onclick do HTML
+window.doLogin         = doLogin;
+window.doRegister      = doRegister;
+window.doLogout        = doLogout;
+window.switchTab       = switchTab;
+window.criarEscola     = criarEscola;
+window.entrarEscola    = entrarEscola;
+window.copiarCodigo    = copiarCodigo;
+window.switchSchoolTab = switchSchoolTab;
+
 /* ═══ AUTH SCREEN LOGIC ═══ */
-window.switchTab = tab => {
-  document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  document.querySelectorAll('.auth-panel').forEach(p => p.style.display = 'none');
-  const panel = gi('panel_' + tab);
-  if (panel) panel.style.display = 'block';
-  clearErrs();
-};
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
   if (gi('authScreen')?.style.display === 'none') return;
@@ -1599,6 +1717,54 @@ html.dark .sc-val{ color:var(--text); }
 </head>
 <body>
 
+<!-- ████████  ESCOLA  ████████ -->
+<div id="schoolScreen" style="display:none;min-height:100vh;align-items:center;justify-content:center;background:var(--bg);padding:20px">
+  <div class="auth-wrap">
+    <div class="auth-logo">
+      <span class="auth-logo-icon">🏫</span>
+      <h1 class="plat-nome">EduStar</h1>
+      <p>Olá, <strong id="spNome"></strong>! Configure sua escola.</p>
+    </div>
+
+    <!-- Código gerado após criar escola -->
+    <div id="codigoBox" style="display:none;background:var(--gold-l);border:2px solid var(--gold-b);border-radius:var(--r-lg);padding:20px;text-align:center;margin-bottom:16px">
+      <p style="font-size:13px;color:var(--t2);margin-bottom:8px">🎉 Escola criada! Compartilhe este código com sua equipe:</p>
+      <div style="font-family:monospace;font-size:24px;font-weight:700;color:var(--gold);letter-spacing:3px;margin-bottom:10px" id="codigoDisplay"></div>
+      <button class="btn gold sm" onclick="copiarCodigo()">📋 Copiar código</button>
+      <button class="btn primary sm" style="margin-left:8px" onclick="gi('codigoBox').style.display='none'">Continuar →</button>
+    </div>
+
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="school-tab auth-tab active" data-tab="criar" onclick="switchSchoolTab('criar')">Criar Escola</button>
+        <button class="school-tab auth-tab"        data-tab="entrar" onclick="switchSchoolTab('entrar')">Entrar em Escola</button>
+      </div>
+
+      <!-- CRIAR -->
+      <div id="sp_criar" class="school-panel">
+        <p style="font-size:13px;color:var(--t3);margin-bottom:14px;line-height:1.6">Crie uma escola e compartilhe o código gerado com seus colegas para que eles acessem os mesmos dados.</p>
+        <div class="fgroup">
+          <label class="flabel">Nome da escola</label>
+          <input id="spNomeEscola" class="finput" placeholder="Ex: E.E. Prof. João Silva">
+        </div>
+        <button id="btnCriarEscola" class="btn primary full" onclick="criarEscola()">🏫 Criar escola</button>
+      </div>
+
+      <!-- ENTRAR -->
+      <div id="sp_entrar" class="school-panel" style="display:none">
+        <p style="font-size:13px;color:var(--t3);margin-bottom:14px;line-height:1.6">Peça o código de acesso para quem criou a escola e cole abaixo para entrar e compartilhar os dados.</p>
+        <div class="fgroup">
+          <label class="flabel">Código da escola</label>
+          <input id="spCodigo" class="finput" placeholder="Ex: ESC-A1B2C3" style="text-transform:uppercase;letter-spacing:2px;font-family:monospace">
+        </div>
+        <button id="btnEntrarEscola" class="btn primary full" onclick="entrarEscola()">🔑 Entrar na escola</button>
+      </div>
+    </div>
+
+    <button class="btn outline sm" style="width:100%;margin-top:10px" onclick="doLogout()">← Usar outra conta</button>
+  </div>
+</div>
+
 <!-- ████████  AUTH  ████████ -->
 <div id="authScreen">
   <div class="auth-wrap">
@@ -1642,6 +1808,7 @@ html.dark .sc-val{ color:var(--text); }
     <div class="topbar-right">
       <span class="sync-dot" id="syncDot"></span>
       <span id="syncTxt" style="font-size:12px;color:var(--t3)">Online</span>
+      <span id="topEscola" style="font-size:11px;font-weight:700;padding:3px 10px;background:var(--gold-l);color:var(--gold);border-radius:99px;border:1px solid var(--gold-b);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       <button id="darkBtn" class="btn outline sm" onclick="quickDark()" title="Alternar modo escuro" style="padding:5px 9px;font-size:16px">🌙</button>
       <div class="user-av" id="uAv">?</div>
       <span id="uNome" style="font-size:13px;color:var(--t2)"></span>
@@ -2075,13 +2242,5 @@ html.dark .sc-val{ color:var(--text); }
 </div>
 
 <div id="toast" class="toast"></div>
-
-<script>
-// Show demo banner after firebase module runs
-setTimeout(() => {
-  const ok = typeof window.__FB_OK !== 'undefined' ? window.__FB_OK : true;
-  // Check if firebase is configured by looking at syncDot
-}, 200);
-</script>
 </body>
 </html>
