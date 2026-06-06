@@ -21,11 +21,24 @@ import { getFirestore, collection, doc, setDoc, getDoc,
 
 /* ════════════════════════════════════════════
    🔥 CONFIGURE SEU FIREBASE AQUI
-   1. console.firebase.google.com
-   2. Criar projeto → Adicionar app Web
-   3. Copiar firebaseConfig e colar abaixo
-   4. Ativar: Authentication → E-mail/Senha
-   5. Ativar: Firestore Database (modo teste)
+   ─────────────────────────────────────────
+   PASSO 1: console.firebase.google.com
+   PASSO 2: Criar projeto gratuito (Spark)
+   PASSO 3: Adicionar app Web → copiar config
+   PASSO 4: Authentication → E-mail/Senha → Ativar
+   PASSO 5: Firestore Database → Criar banco
+            → Selecionar "Modo de teste"
+   PASSO 6: Firestore → Regras → Publicar:
+     rules_version = '2';
+     service cloud.firestore {
+       match /databases/{database}/documents {
+         match /users/{userId}/{document=**} {
+           allow read, write: if request.auth != null
+             && request.auth.uid == userId;
+         }
+       }
+     }
+   PASSO 7: Cole os valores abaixo e salve
 ════════════════════════════════════════════ */
 const firebaseConfig = {
   apiKey:            "COLE_AQUI",
@@ -158,45 +171,100 @@ function startApp(user) {
 /* ═══ DATA LAYER ═══ */
 function uPath(...segs) { return ['users', USER.uid, ...segs]; }
 
+// Debounce save to avoid flooding Firestore
+let _persistTimer = null;
+let _persistPending = false;
+
 async function loadData() {
   if (!FB_OK) {
     DATA = LS.g('data_'+USER.uid) || defaultData();
+    // Migrate: ensure config has new fields
+    DATA.config = { ...defaultData().config, ...DATA.config };
     renderAll();
     return;
   }
-  // Load all from Firestore
+  setSyncLabel('Carregando…', 'loading');
   try {
     const snap = await getDoc(doc(db, ...uPath('meta','main')));
-    DATA = snap.exists() ? { ...defaultData(), ...snap.data() } : defaultData();
-  } catch { DATA = defaultData(); }
-  renderAll();
-  // Real-time
-  unsubFn = onSnapshot(doc(db, ...uPath('meta','main')), snap => {
     if (snap.exists()) {
-      DATA = { ...defaultData(), ...snap.data() };
-      renderAll();
+      const remote = snap.data();
+      DATA = { ...defaultData() };
+      // Deep merge arrays and config
+      for (const key of Object.keys(DATA)) {
+        if (key === 'config') DATA.config = { ...defaultData().config, ...(remote.config||{}) };
+        else if (Array.isArray(DATA[key])) DATA[key] = Array.isArray(remote[key]) ? remote[key] : [];
+      }
+    } else {
+      DATA = defaultData();
     }
-  });
+  } catch(e) {
+    console.warn('Firestore load error:', e);
+    DATA = LS.g('data_'+USER.uid) || defaultData();
+    setSyncLabel('Offline', 'warn');
+  }
+  renderAll();
+  // Real-time listener
+  if (unsubFn) unsubFn();
+  unsubFn = onSnapshot(
+    doc(db, ...uPath('meta','main')),
+    snap => {
+      if (_persistPending) return; // skip if we're mid-save
+      if (snap.exists()) {
+        const remote = snap.data();
+        DATA = { ...defaultData() };
+        for (const key of Object.keys(DATA)) {
+          if (key === 'config') DATA.config = { ...defaultData().config, ...(remote.config||{}) };
+          else if (Array.isArray(DATA[key])) DATA[key] = Array.isArray(remote[key]) ? remote[key] : [];
+        }
+        renderAll();
+      }
+    },
+    err => { console.warn('Snapshot error:', err); setSyncLabel('Offline', 'warn'); }
+  );
 }
 
 async function persist() {
-  if (!FB_OK) { LS.s('data_'+USER.uid, DATA); return; }
-  try {
-    await setDoc(doc(db, ...uPath('meta','main')), DATA);
-    setSyncOk();
-  } catch(e) { toast('Erro ao salvar na nuvem.','err'); }
+  // Always save locally first
+  LS.s('data_'+USER.uid, DATA);
+  if (!FB_OK) return;
+
+  _persistPending = true;
+  clearTimeout(_persistTimer);
+  setSyncLabel('Salvando…', 'saving');
+
+  _persistTimer = setTimeout(async () => {
+    try {
+      // Firestore has a 1MB document limit — sanitize before saving
+      const payload = JSON.parse(JSON.stringify(DATA)); // deep clone & strip undefined
+      await setDoc(doc(db, ...uPath('meta','main')), payload);
+      setSyncOk();
+    } catch(e) {
+      console.error('Persist error:', e);
+      if (e.code === 'permission-denied') toast('❌ Permissão negada. Verifique as regras do Firestore.','err',5000);
+      else if (e.code === 'unavailable')  toast('📵 Sem conexão — salvo localmente.','warn');
+      else toast('Erro ao salvar na nuvem: '+e.code,'err');
+      setSyncLabel('Erro', 'warn');
+    } finally { _persistPending = false; }
+  }, 600); // debounce 600ms
 }
 
 function setSyncOk() {
-  const el = gi('syncDot');
-  if (el) { el.className = 'sync-dot ok'; gi('syncTxt').textContent = 'Salvo ☁️'; }
-  setTimeout(() => { if(el) { el.className='sync-dot'; gi('syncTxt').textContent='Online'; } }, 2500);
+  setSyncLabel('Salvo ☁️', 'ok');
+  setTimeout(() => setSyncLabel('Online', ''), 2500);
+}
+
+function setSyncLabel(txt, state) {
+  const dot = gi('syncDot');
+  const lbl = gi('syncTxt');
+  if (lbl) lbl.textContent = txt;
+  if (dot) dot.className = 'sync-dot' + (state ? ' '+state : '');
 }
 
 function defaultData() {
   return {
     config: {
       nomePlat: 'EduStar', cor1: '#1a1916', cor2: '#C9953A',
+      darkMode: false,
       presenca: 10, participacao: 5, atraso: -2, falta: -5, bonus100: 10,
       kahootFreqMin: 75, metaEstrMes: 50
     },
@@ -939,10 +1007,12 @@ function renderConfig() {
 }
 
 window.saveConfig = async () => {
+  const darkMode = gi('cfgDarkMode')?.checked || false;
   DATA.config = {
     nomePlat:     gv('cfgNomePlat')||'EduStar',
     cor1:         gv('cfgCor1')||'#1a1916',
     cor2:         gv('cfgCor2')||'#C9953A',
+    darkMode,
     presenca:     parseInt(gv('cfgPresenca'))||10,
     participacao: parseInt(gv('cfgPartic'))||5,
     atraso:       parseInt(gv('cfgAtraso'))||-2,
@@ -954,16 +1024,62 @@ window.saveConfig = async () => {
   await persist(); applyTheme(); toast('✅ Configurações salvas!','ok');
 };
 
+window.toggleDarkLive = () => {
+  const checked = gi('cfgDarkMode')?.checked;
+  document.documentElement.classList.toggle('dark', checked);
+  const darkBtn = gi('darkBtn');
+  if (darkBtn) darkBtn.textContent = checked ? '☀️' : '🌙';
+};
+
 function applyTheme() {
+  const c = DATA.config || {};
+  const root = document.documentElement;
+
+  // Dark mode
+  const dark = c.darkMode || false;
+  root.classList.toggle('dark', dark);
+  const darkBtn = gi('darkBtn');
+  if (darkBtn) darkBtn.textContent = dark ? '☀️' : '🌙';
+
+  // Accent color
+  if (c.cor2) {
+    root.style.setProperty('--gold', c.cor2);
+    const hex = c.cor2.replace('#','');
+    const r = parseInt(hex.slice(0,2),16);
+    const g = parseInt(hex.slice(2,4),16);
+    const b = parseInt(hex.slice(4,6),16);
+    root.style.setProperty('--gold-l', `rgba(${r},${g},${b},.12)`);
+    root.style.setProperty('--gold-b', `rgba(${r},${g},${b},.3)`);
+  }
+
+  // Platform name
+  if (c.nomePlat) {
+    document.querySelectorAll('.plat-nome').forEach(e => e.textContent = c.nomePlat);
+    document.title = c.nomePlat;
+  }
+}
+
+function renderConfig() {
   const c = DATA.config||{};
-  if (c.cor2) document.documentElement.style.setProperty('--gold', c.cor2);
-  if (c.nomePlat) { document.querySelectorAll('.plat-nome').forEach(e=>e.textContent=c.nomePlat); document.title=c.nomePlat; }
+  sv('cfgNomePlat',  c.nomePlat||'EduStar');
+  sv('cfgCor2',      c.cor2||'#C9953A');
+  const dm = gi('cfgDarkMode');
+  if (dm) dm.checked = !!c.darkMode;
+  syncSwatches(c.cor2||'#C9953A');
+  sv('cfgPresenca',  c.presenca??10);
+  sv('cfgPartic',    c.participacao??5);
+  sv('cfgAtraso',    c.atraso??-2);
+  sv('cfgFalta',     c.falta??-5);
+  sv('cfgBonus100',  c.bonus100??10);
+  sv('cfgKFreq',     c.kahootFreqMin??75);
+  sv('cfgMetaEst',   c.metaEstrMes??50);
 }
 
 /* ═══════════════════════════════════════════
    RELATÓRIOS
 ═══════════════════════════════════════════ */
 function renderRelatorios() {}
+
 
 window.gerarRelatorio = tipo => {
   const nomes = { geral:'Geral', individual:'Individual', frequencia:'Frequência', estrelas:'Estrelas', kahoot:'Kahoot', metas:'Metas' };
@@ -1022,6 +1138,53 @@ window.exportCSV = () => {
   const a = Object.assign(document.createElement('a'),{href:u,download:'edustar_alunos.csv'}); a.click(); URL.revokeObjectURL(u);
   toast('CSV exportado!','ok');
 };
+
+// Quick dark toggle from topbar button
+window.quickDark = () => {
+  DATA.config.darkMode = !DATA.config.darkMode;
+  document.documentElement.classList.toggle('dark', DATA.config.darkMode);
+  const btn = gi('darkBtn');
+  if (btn) btn.textContent = DATA.config.darkMode ? '☀️' : '🌙';
+  const cb = gi('cfgDarkMode');
+  if (cb) cb.checked = DATA.config.darkMode;
+  persist();
+};
+
+// Live color preview without saving
+window.previewCor = val => {
+  const root = document.documentElement;
+  root.style.setProperty('--gold', val);
+  const hex = val.replace('#','');
+  const r = parseInt(hex.slice(0,2),16), g = parseInt(hex.slice(2,4),16), b = parseInt(hex.slice(4,6),16);
+  root.style.setProperty('--gold-l', `rgba(${r},${g},${b},.12)`);
+  root.style.setProperty('--gold-b', `rgba(${r},${g},${b},.3)`);
+  syncSwatches(val);
+};
+
+// Pick from palette
+window.pickCor = val => {
+  const el = gi('cfgCor2'); if (el) el.value = val;
+  previewCor(val);
+};
+
+function syncSwatches(val) {
+  document.querySelectorAll('.cp-swatch').forEach(s => {
+    s.classList.toggle('sel', s.style.background.toLowerCase() === val.toLowerCase() ||
+      hexNorm(s.style.background) === hexNorm(val));
+  });
+}
+
+function hexNorm(c) {
+  if (!c) return '';
+  const tmp = document.createElement('div');
+  tmp.style.color = c;
+  document.body.appendChild(tmp);
+  const comp = getComputedStyle(tmp).color;
+  document.body.removeChild(tmp);
+  const m = comp.match(/\d+/g);
+  if (!m) return c;
+  return '#' + m.slice(0,3).map(n=>parseInt(n).toString(16).padStart(2,'0')).join('');
+}
 
 /* ═══ AUTH SCREEN LOGIC ═══ */
 window.switchTab = tab => {
@@ -1304,6 +1467,78 @@ textarea.finput{resize:vertical;min-height:72px}
 .toast.err{background:var(--red)}
 .toast.warn{background:var(--warn)}
 
+/* ── DARK MODE ── */
+html.dark{
+  --bg:#111110; --surface:#1C1B19; --surface2:#242320;
+  --border:#2E2C28; --border2:#3D3A34;
+  --text:#F0EDE8; --t2:#C4C0B8; --t3:#7A7670; --t4:#4A4740;
+  --sh:0 1px 3px rgba(0,0,0,.3),0 0 0 1px rgba(0,0,0,.2);
+  --sh2:0 8px 24px rgba(0,0,0,.4);
+}
+html.dark body{ background:var(--bg); color:var(--text); }
+html.dark .topbar{ background:var(--surface); border-color:var(--border); }
+html.dark .sidebar{ background:var(--surface); border-color:var(--border); }
+html.dark .main-toolbar{ background:var(--surface); border-color:var(--border); }
+html.dark .auth-card{ background:var(--surface); border-color:var(--border); }
+html.dark #authScreen{ background:var(--bg); }
+html.dark .auth-tabs{ background:var(--bg); border-color:var(--border); }
+html.dark .auth-tab.active{ background:var(--surface2); }
+html.dark .finput{ background:var(--surface2); border-color:var(--border); color:var(--text); }
+html.dark .finput:focus{ border-color:var(--gold); box-shadow:0 0 0 3px rgba(201,149,58,.15); }
+html.dark .stat-card{ background:var(--surface); border-color:var(--border); }
+html.dark .chart-box{ background:var(--surface); border-color:var(--border); }
+html.dark .rank-box{ background:var(--surface); border-color:var(--border); }
+html.dark .card-item{ background:var(--surface); border-color:var(--border); }
+html.dark .grupo-card{ background:var(--surface); border-color:var(--border); }
+html.dark .aluno-row{ background:var(--surface); border-color:var(--border); }
+html.dark .freq-summary{ background:var(--surface); border-color:var(--border); }
+html.dark .freq-row{ background:var(--surface); border-color:var(--border); }
+html.dark .fq-btn{ background:var(--surface); border-color:var(--border); color:var(--t2); }
+html.dark .fq-btn:hover{ background:var(--surface2); }
+html.dark .swot-q{ background:var(--surface); border-color:var(--border); }
+html.dark .swot-item{ background:var(--surface2); border-color:var(--border); }
+html.dark .w2h-card{ background:var(--surface); border-color:var(--border); }
+html.dark .w2h-tag{ background:var(--surface2); border-color:var(--border); }
+html.dark .p5-card{ background:var(--surface); border-color:var(--border); }
+html.dark .data-table{ background:var(--surface); }
+html.dark .data-table thead tr{ background:var(--surface2); }
+html.dark .data-table td{ border-color:var(--border); color:var(--t2); }
+html.dark .data-table tbody tr:hover{ background:var(--surface2); }
+html.dark .relat-card{ background:var(--surface); border-color:var(--border); }
+html.dark .relat-card:hover{ border-color:var(--gold); }
+html.dark .cfg-section{ background:var(--surface); border-color:var(--border); }
+html.dark .cfg-row{ border-color:var(--border); }
+html.dark .modal{ background:var(--surface); border-color:var(--border); }
+html.dark .m-close:hover{ background:var(--surface2); }
+html.dark .chip{ background:var(--surface2); border-color:var(--border); }
+html.dark .badge.gray{ background:var(--surface2); color:var(--t3); border-color:var(--border); }
+html.dark .ibtn:hover{ background:var(--surface2); color:var(--text); }
+html.dark .btn.outline{ background:var(--surface); color:var(--t2); border-color:var(--border2); }
+html.dark .btn.outline:hover{ background:var(--surface2); }
+html.dark .btn.primary{ background:var(--text); color:var(--bg); }
+html.dark .nav-item:hover{ background:var(--surface2); }
+html.dark .nav-item.active{ background:rgba(201,149,58,.15); color:var(--gold); }
+html.dark .demo-banner{ background:#2A1F00; border-color:#3D2E00; color:#C9953A; }
+html.dark .prog-bar{ background:var(--surface2); }
+html.dark .w2h-prog-bar{ background:var(--surface2); }
+html.dark .p5-causa{ background:rgba(27,123,74,.2); border-color:rgba(27,123,74,.4); color:#4ade80; }
+html.dark .sc-val{ color:var(--text); }
+
+/* toggle switch */
+.toggle-wrap{display:flex;align-items:center;gap:10px}
+.toggle{position:relative;width:40px;height:22px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0;position:absolute}
+.toggle-slider{position:absolute;inset:0;background:var(--border2);border-radius:99px;transition:.2s;cursor:pointer}
+.toggle-slider::before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.toggle input:checked+.toggle-slider{background:var(--gold)}
+.toggle input:checked+.toggle-slider::before{transform:translateX(18px)}
+
+/* color palette picker */
+.color-palette{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.cp-swatch{width:28px;height:28px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:transform .15s,border-color .15s;flex-shrink:0}
+.cp-swatch:hover{transform:scale(1.15)}
+.cp-swatch.sel{border-color:var(--text);transform:scale(1.1)}
+
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
   :root{--sidebar:0px}
@@ -1364,6 +1599,7 @@ textarea.finput{resize:vertical;min-height:72px}
     <div class="topbar-right">
       <span class="sync-dot" id="syncDot"></span>
       <span id="syncTxt" style="font-size:12px;color:var(--t3)">Online</span>
+      <button id="darkBtn" class="btn outline sm" onclick="quickDark()" title="Alternar modo escuro" style="padding:5px 9px;font-size:16px">🌙</button>
       <div class="user-av" id="uAv">?</div>
       <span id="uNome" style="font-size:13px;color:var(--t2)"></span>
       <button class="btn outline sm" onclick="doLogout()">Sair</button>
@@ -1578,12 +1814,44 @@ textarea.finput{resize:vertical;min-height:72px}
 
       <!-- ── CONFIGURAÇÕES ── -->
       <div class="page page-body" id="pg-configuracoes">
+
         <div class="cfg-section">
           <h4>🎨 Identidade Visual</h4>
-          <div class="cfg-row"><div class="cfg-label">Nome da plataforma</div><input id="cfgNomePlat" class="finput cfg-val" style="width:160px"></div>
-          <div class="cfg-row"><div class="cfg-label">Cor principal</div><input id="cfgCor1" type="color" class="finput cfg-val" style="width:60px;height:36px;padding:2px"></div>
-          <div class="cfg-row"><div class="cfg-label">Cor de destaque (estrelas)</div><input id="cfgCor2" type="color" class="finput cfg-val" style="width:60px;height:36px;padding:2px"></div>
+          <div class="cfg-row">
+            <div class="cfg-label">Nome da plataforma</div>
+            <input id="cfgNomePlat" class="finput cfg-val" style="width:160px">
+          </div>
+          <div class="cfg-row">
+            <div class="cfg-label">
+              Cor de destaque
+              <small>Usada em estrelas, botões e destaques</small>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <input id="cfgCor2" type="color" class="finput" style="width:44px;height:36px;padding:2px;cursor:pointer" oninput="previewCor(this.value)">
+              <div class="color-palette" id="colorPalette">
+                <div class="cp-swatch" style="background:#C9953A" title="Âmbar" onclick="pickCor('#C9953A')"></div>
+                <div class="cp-swatch" style="background:#2B5CE6" title="Azul" onclick="pickCor('#2B5CE6')"></div>
+                <div class="cp-swatch" style="background:#7C3AED" title="Roxo" onclick="pickCor('#7C3AED')"></div>
+                <div class="cp-swatch" style="background:#1B7B4A" title="Verde" onclick="pickCor('#1B7B4A')"></div>
+                <div class="cp-swatch" style="background:#C0392B" title="Vermelho" onclick="pickCor('#C0392B')"></div>
+                <div class="cp-swatch" style="background:#0891B2" title="Ciano" onclick="pickCor('#0891B2')"></div>
+                <div class="cp-swatch" style="background:#DB2777" title="Rosa" onclick="pickCor('#DB2777')"></div>
+                <div class="cp-swatch" style="background:#64748B" title="Cinza" onclick="pickCor('#64748B')"></div>
+              </div>
+            </div>
+          </div>
+          <div class="cfg-row">
+            <div class="cfg-label">
+              🌙 Modo escuro
+              <small>Alterna entre tema claro e escuro</small>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="cfgDarkMode" onchange="toggleDarkLive()">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
         </div>
+
         <div class="cfg-section">
           <h4>⭐ Pontuação por Frequência</h4>
           <div class="cfg-row"><div class="cfg-label">✅ Presença<small>Estrelas por presença</small></div><input id="cfgPresenca" type="number" class="finput cfg-val"></div>
@@ -1592,11 +1860,13 @@ textarea.finput{resize:vertical;min-height:72px}
           <div class="cfg-row"><div class="cfg-label">❌ Falta<small>Pode ser negativo</small></div><input id="cfgFalta" type="number" class="finput cfg-val"></div>
           <div class="cfg-row"><div class="cfg-label">🎯 Bônus sala 100%<small>Toda turma presente</small></div><input id="cfgBonus100" type="number" class="finput cfg-val"></div>
         </div>
+
         <div class="cfg-section">
           <h4>🎮 Kahoot & Metas</h4>
           <div class="cfg-row"><div class="cfg-label">Frequência mínima Kahoot (%)<small>Para ser elegível ao prêmio</small></div><input id="cfgKFreq" type="number" class="finput cfg-val"></div>
           <div class="cfg-row"><div class="cfg-label">Meta de estrelas mensal<small>Por aluno</small></div><input id="cfgMetaEst" type="number" class="finput cfg-val"></div>
         </div>
+
         <button class="btn gold" onclick="saveConfig()">💾 Salvar Configurações</button>
       </div>
 
