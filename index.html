@@ -9,1086 +9,6 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-<script>
-/* ══════════════════════════════════════════════════════════
-   🔥  CONFIGURE SEU FIREBASE AQUI
-   ─────────────────────────────────────────────────────────
-   1. console.firebase.google.com → Criar projeto gratuito
-   2. Adicionar app Web → copiar firebaseConfig abaixo
-   3. Authentication → Sign-in method → E-mail/Senha → Ativar
-   4. Firestore Database → Criar banco → Modo teste
-   5. Firestore → Regras → colar e publicar:
-
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{database}/documents {
-       match /schools/{sid} {
-         allow read, write: if request.auth != null
-           && request.auth.uid in resource.data.members;
-         allow create: if request.auth != null;
-       }
-       match /schools/{sid}/data/{doc} {
-         allow read, write: if request.auth != null
-           && get(/databases/$(database)/documents/schools/$(sid))
-               .data.members.hasAny([request.auth.uid]);
-       }
-     }
-   }
-══════════════════════════════════════════════════════════ */
-const firebaseConfig = {
-  apiKey:            "COLE_AQUI",
-  authDomain:        "COLE_AQUI",
-  projectId:         "COLE_AQUI",
-  storageBucket:     "COLE_AQUI",
-  messagingSenderId: "COLE_AQUI",
-  appId:             "COLE_AQUI"
-};
-/* ══════════════════════════════════════════════════════════ */
-
-const FB_OK = !firebaseConfig.apiKey.includes('COLE_AQUI');
-
-/* ── LocalStorage helper ─────────────────────────────────── */
-const LS = {
-  g: k => { try { return JSON.parse(localStorage.getItem('es_'+k)); } catch { return null; } },
-  s: (k,v) => localStorage.setItem('es_'+k, JSON.stringify(v)),
-  d: k => localStorage.removeItem('es_'+k)
-};
-
-/* ── Estado global ───────────────────────────────────────── */
-let USER     = null;   // { uid, nome, email, schoolId, schoolNome, isOwner }
-let DATA     = {};
-let unsubFn  = null;
-let fbAuth   = null, fbDB = null;
-let _reg     = false;  // flag: registro em andamento
-let _started = false;  // flag: app já iniciado
-let activePage = 'dashboard', activeTurmaId = null;
-let charts = {}, freqState = {};
-
-/* ════════════════════════════════════════════════════════════
-   BOOT
-════════════════════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', async () => {
-  show('authScreen');
-
-  if (!FB_OK) {
-    showBanner('⚠️ Firebase não configurado — dados salvos localmente');
-    const u = LS.g('user');
-    if (u?.schoolId) startApp(u); else if (u) showSchoolPicker(u);
-    return;
-  }
-
-  try {
-    const [{ initializeApp },
-           { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-             signOut, onAuthStateChanged, updateProfile },
-           { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion, onSnapshot }
-    ] = await Promise.all([
-      import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js'),
-      import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'),
-      import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js'),
-    ]);
-
-    const app = initializeApp(firebaseConfig);
-    fbAuth = getAuth(app);
-    fbDB   = getFirestore(app);
-    window._fb = { doc, setDoc, getDoc, updateDoc, arrayUnion, onSnapshot,
-                   signOut, createUserWithEmailAndPassword,
-                   signInWithEmailAndPassword, updateProfile };
-
-    onAuthStateChanged(fbAuth, async fbUser => {
-      if (_reg) return;
-      if (fbUser) {
-        await fbUser.reload().catch(() => {});
-        const nome  = fbAuth.currentUser?.displayName || fbUser.displayName || fbUser.email.split('@')[0];
-        const saved = LS.g('user_' + fbUser.uid);
-        const user  = { uid: fbUser.uid, nome, email: fbUser.email, ...(saved || {}) };
-        if (user.schoolId) startApp(user);
-        else showSchoolPicker(user);
-      } else {
-        show('authScreen');
-      }
-    });
-  } catch (e) {
-    console.error('Firebase init error:', e);
-    showBanner('⚠️ Erro ao conectar Firebase — modo offline');
-    const u = LS.g('user');
-    if (u) startApp(u); else show('authScreen');
-  }
-});
-
-/* ════════════════════════════════════════════════════════════
-   TELA UTILS
-════════════════════════════════════════════════════════════ */
-function show(screenId) {
-  ['authScreen','schoolScreen','app'].forEach(id => {
-    const el = gi(id);
-    if (el) el.style.display = id === screenId ? (id === 'app' ? 'flex' : 'flex') : 'none';
-  });
-  if (screenId !== 'app') { _started = false; }
-}
-
-/* ════════════════════════════════════════════════════════════
-   AUTH
-════════════════════════════════════════════════════════════ */
-async function doLogin() {
-  const email = (gi('lEmail')?.value || '').trim();
-  const pw    =  gi('lPw')?.value || '';
-  clearErrs();
-  if (!email) { setErr('lEmail','E-mail obrigatório'); return; }
-  if (!pw)    { setErr('lPw','Senha obrigatória');     return; }
-  setBL('btnLogin', true);
-  try {
-    if (!FB_OK || !fbAuth) {
-      const u = LS.g('user');
-      if (u && u.email === email) {
-        if (u.schoolId) startApp(u); else showSchoolPicker(u);
-      } else toast('Usuário não encontrado.', 'err');
-    } else {
-      await window._fb.signInWithEmailAndPassword(fbAuth, email, pw);
-    }
-  } catch(e) { toast(fbErr(e), 'err'); }
-  finally    { setBL('btnLogin', false); }
-}
-
-async function doRegister() {
-  const nome  = (gi('rNome')?.value || '').trim();
-  const email = (gi('rEmail')?.value || '').trim();
-  const pw    =  gi('rPw')?.value  || '';
-  const pw2   =  gi('rPw2')?.value || '';
-  clearErrs();
-  let ok = true;
-  if (!nome)                        { setErr('rNome','Nome obrigatório');    ok = false; }
-  if (!email || !email.includes('@')){ setErr('rEmail','E-mail inválido');   ok = false; }
-  if (pw.length < 6)                { setErr('rPw','Mínimo 6 caracteres');   ok = false; }
-  if (pw !== pw2)                   { setErr('rPw2','Senhas não coincidem'); ok = false; }
-  if (!ok) return;
-  setBL('btnReg', true);
-  try {
-    if (!FB_OK || !fbAuth) {
-      const u = { uid: 'demo_'+uid(), nome, email };
-      LS.s('user', u);
-      showSchoolPicker(u);
-      return;
-    }
-    _reg = true;
-    const cred = await window._fb.createUserWithEmailAndPassword(fbAuth, email, pw);
-    await window._fb.updateProfile(cred.user, { displayName: nome });
-    await cred.user.reload();
-    _reg = false;
-    showSchoolPicker({ uid: cred.user.uid, nome, email });
-  } catch(e) {
-    _reg = false;
-    toast(fbErr(e), 'err');
-  } finally { setBL('btnReg', false); }
-}
-
-async function doLogout() {
-  if (unsubFn) { unsubFn(); unsubFn = null; }
-  const prevUid = USER?.uid;
-  USER = null; DATA = {}; _started = false;
-  Object.values(charts).forEach(c => { try { c.destroy(); } catch {} });
-  charts = {}; freqState = {};
-  if (!FB_OK || !fbAuth) { LS.d('user'); }
-  else { try { await window._fb.signOut(fbAuth); } catch {} }
-  show('authScreen');
-}
-
-function fbErr(e) {
-  const m = {
-    'auth/email-already-in-use': 'Este e-mail já está cadastrado.',
-    'auth/invalid-email':         'E-mail inválido.',
-    'auth/weak-password':         'Senha fraca — mínimo 6 caracteres.',
-    'auth/user-not-found':        'Usuário não encontrado.',
-    'auth/wrong-password':        'Senha incorreta.',
-    'auth/invalid-credential':    'E-mail ou senha incorretos.',
-    'auth/too-many-requests':     'Muitas tentativas. Aguarde.',
-    'auth/network-request-failed':'Sem conexão com a internet.',
-    'auth/operation-not-allowed': 'Login por e-mail não ativado no Firebase.',
-  };
-  return m[e.code] || ('Erro: ' + (e.message || e.code || 'desconhecido'));
-}
-
-function switchTab(tab) {
-  document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  document.querySelectorAll('.auth-panel').forEach(p => p.style.display = 'none');
-  const p = gi('panel_' + tab); if (p) p.style.display = 'block';
-  clearErrs();
-}
-
-/* ════════════════════════════════════════════════════════════
-   ESCOLA — CRIAR / ENTRAR
-════════════════════════════════════════════════════════════ */
-function showSchoolPicker(tempUser) {
-  window._tmpUser = tempUser;
-  gi('spUserNome').textContent = tempUser.nome || tempUser.email;
-  show('schoolScreen');
-}
-
-async function criarEscola() {
-  const nome = (gi('spNomeEscola')?.value || '').trim();
-  if (!nome) { toast('Informe o nome da escola.', 'err'); return; }
-  setBL('btnCriarEscola', true);
-  try {
-    const u = window._tmpUser;
-    const schoolId = 'ESC-' + uid().toUpperCase();
-    const schoolData = { nome, owner: u.uid, members: [u.uid], criadoEm: Date.now() };
-    if (FB_OK && fbDB) {
-      await window._fb.setDoc(window._fb.doc(fbDB, 'schools', schoolId), schoolData);
-    } else {
-      LS.s('school_' + schoolId, schoolData);
-    }
-    const user = { ...u, schoolId, schoolNome: nome, isOwner: true };
-    LS.s('user_' + u.uid, user);
-    startApp(user);
-    // Mostrar código após entrar no app
-    setTimeout(() => mostrarCodigo(), 400);
-    toast(`🏫 Escola criada! Compartilhe o código com sua equipe.`, 'ok', 5000);
-  } catch(e) {
-    toast('Erro ao criar escola: ' + e.message, 'err');
-  } finally { setBL('btnCriarEscola', false); }
-}
-
-async function entrarEscola() {
-  const code = (gi('spCodigo')?.value || '').trim().toUpperCase();
-  if (!code) { toast('Informe o código da escola.', 'err'); return; }
-  setBL('btnEntrarEscola', true);
-  try {
-    const u = window._tmpUser;
-    let schoolData;
-    if (FB_OK && fbDB) {
-      const snap = await window._fb.getDoc(window._fb.doc(fbDB, 'schools', code));
-      if (!snap.exists()) { toast('Código inválido — escola não encontrada.', 'err'); return; }
-      schoolData = snap.data();
-      if (!schoolData.members.includes(u.uid)) {
-        await window._fb.updateDoc(window._fb.doc(fbDB, 'schools', code), {
-          members: window._fb.arrayUnion(u.uid)
-        });
-      }
-    } else {
-      schoolData = LS.g('school_' + code);
-      if (!schoolData) { toast('Código inválido.', 'err'); return; }
-      if (!schoolData.members.includes(u.uid)) {
-        schoolData.members.push(u.uid);
-        LS.s('school_' + code, schoolData);
-      }
-    }
-    const user = { ...u, schoolId: code, schoolNome: schoolData.nome, isOwner: schoolData.owner === u.uid };
-    LS.s('user_' + u.uid, user);
-    startApp(user);
-    toast(`✅ Entrou em "${schoolData.nome}"!`, 'ok');
-  } catch(e) {
-    toast('Erro ao entrar: ' + e.message, 'err');
-  } finally { setBL('btnEntrarEscola', false); }
-}
-
-function switchSchoolTab(tab) {
-  document.querySelectorAll('.school-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  document.querySelectorAll('.school-panel').forEach(p => p.style.display = 'none');
-  const p = gi('sp_' + tab); if (p) p.style.display = 'block';
-}
-
-async function sairEscola() {
-  if (!confirm('Sair da escola? Você precisará entrar com o código novamente.')) return;
-  if (USER?.uid) {
-    const saved = LS.g('user_' + USER.uid) || {};
-    delete saved.schoolId; delete saved.schoolNome; delete saved.isOwner;
-    LS.s('user_' + USER.uid, saved);
-  }
-  if (unsubFn) { unsubFn(); unsubFn = null; }
-  DATA = {}; _started = false;
-  const tempUser = { uid: USER.uid, nome: USER.nome, email: USER.email };
-  USER = null;
-  gi('app').style.display = 'none';
-  showSchoolPicker(tempUser);
-}
-
-/* ════════════════════════════════════════════════════════════
-   INICIAR APP
-════════════════════════════════════════════════════════════ */
-function startApp(user) {
-  if (_started && USER?.uid === user.uid) return;
-  _started = true;
-  USER = user;
-  gi('uNome').textContent = user.nome || user.email;
-  gi('uAv').textContent   = initials(user.nome || user.email);
-  gi('topEscola').textContent = user.schoolNome || '';
-  show('app');
-  loadData();
-}
-
-/* ════════════════════════════════════════════════════════════
-   DATA LAYER — compartilhado por escola
-════════════════════════════════════════════════════════════ */
-function dbRef() {
-  return window._fb.doc(fbDB, 'schools', USER.schoolId, 'data', 'main');
-}
-
-let _saveTimer = null, _saving = false;
-
-async function loadData() {
-  const localKey = 'data_' + (USER.schoolId || USER.uid);
-  if (!FB_OK || !fbDB || !USER.schoolId) {
-    DATA = LS.g(localKey) || defaultData();
-    DATA.config = { ...defaultData().config, ...DATA.config };
-    renderAll(); return;
-  }
-  syncStatus('Carregando…', 'loading');
-  try {
-    const snap = await window._fb.getDoc(dbRef());
-    DATA = snap.exists() ? mergeData(snap.data()) : defaultData();
-  } catch(e) {
-    DATA = LS.g(localKey) || defaultData();
-    syncStatus('Offline', 'warn');
-  }
-  renderAll();
-  // Listener tempo real — todos os membros recebem updates imediatos
-  if (unsubFn) unsubFn();
-  unsubFn = window._fb.onSnapshot(dbRef(),
-    snap => {
-      if (_saving) return;
-      if (snap.exists()) { DATA = mergeData(snap.data()); renderAll(); }
-    },
-    () => syncStatus('Offline', 'warn')
-  );
-}
-
-function mergeData(remote) {
-  const base = defaultData();
-  for (const k of Object.keys(base)) {
-    if (k === 'config') base.config = { ...base.config, ...(remote.config || {}) };
-    else if (Array.isArray(base[k])) base[k] = Array.isArray(remote[k]) ? remote[k] : [];
-  }
-  return base;
-}
-
-async function persist() {
-  LS.s('data_' + (USER.schoolId || USER.uid), DATA);
-  if (!FB_OK || !fbDB || !USER.schoolId) return;
-  _saving = true;
-  clearTimeout(_saveTimer);
-  syncStatus('Salvando…', 'saving');
-  _saveTimer = setTimeout(async () => {
-    try {
-      await window._fb.setDoc(dbRef(), JSON.parse(JSON.stringify(DATA)));
-      syncStatus('Salvo ☁️', 'ok');
-      setTimeout(() => syncStatus('Online', ''), 2000);
-    } catch(e) {
-      const msg = e.code === 'permission-denied'
-        ? '❌ Sem permissão — verifique as regras do Firestore'
-        : e.code === 'unavailable' ? '📵 Offline — salvo localmente' : 'Erro: ' + e.code;
-      toast(msg, 'err', 5000);
-      syncStatus('Erro', 'warn');
-    } finally { _saving = false; }
-  }, 500);
-}
-
-function syncStatus(txt, state) {
-  const dot = gi('syncDot'), lbl = gi('syncTxt');
-  if (lbl) lbl.textContent = txt;
-  if (dot) dot.className = 'sync-dot' + (state ? ' ' + state : '');
-}
-
-function defaultData() {
-  return {
-    config: {
-      nomePlat: 'EduStar', cor2: '#C9953A', darkMode: false,
-      presenca: 10, participacao: 5, atraso: -2, falta: -5, bonus100: 10,
-      kahootFreqMin: 75, metaEstrMes: 50
-    },
-    turmas: [], grupos: [], alunos: [], recompensas: [],
-    desafios: [], kahoot: [], metas: [], swot: [], w2h: [], porques: []
-  };
-}
-
-/* ════════════════════════════════════════════════════════════
-   UTILS
-════════════════════════════════════════════════════════════ */
-function uid()       { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
-function gi(id)      { return document.getElementById(id); }
-function gv(id)      { return gi(id)?.value || ''; }
-function sv(id, v)   { const e = gi(id); if (e) e.value = v ?? ''; }
-function esc(s)      { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function initials(n) { return (n || '?').split(' ').slice(0,2).map(w => (w[0] || '').toUpperCase()).join(''); }
-function today()     { return new Date().toISOString().slice(0,10); }
-function fmtDate(d)  { return d ? new Date(d).toLocaleDateString('pt-BR') : '—'; }
-function setErr(id, m) { const e = gi('err_'+id); if (e) { e.textContent = m; e.style.display = 'block'; } gi(id)?.classList.add('inp-err'); }
-function clearErrs() { document.querySelectorAll('.err-msg').forEach(e => { e.textContent = ''; e.style.display = 'none'; }); document.querySelectorAll('.inp-err').forEach(e => e.classList.remove('inp-err')); }
-function setBL(id, v) { const b = gi(id); if (!b) return; b.disabled = v; b.dataset.orig = b.dataset.orig || b.textContent; b.textContent = v ? 'Aguarde…' : b.dataset.orig; }
-function emptyHTML(ic, msg, sub) { return `<div class="empty-state"><div class="empty-ic">${ic}</div><p>${msg}</p>${sub ? `<small>${sub}</small>` : ''}</div>`; }
-function fillSel(id, arr, ph, sel) { const el = gi(id); if (!el) return; el.innerHTML = `<option value="">${ph}</option>` + arr.map(x => `<option value="${x.id}"${x.id===sel?' selected':''}>${esc(x.nome)}</option>`).join(''); }
-
-let _tt;
-function toast(msg, type = '', dur = 3200) {
-  const t = gi('toast'); if (!t) return;
-  t.textContent = msg; t.className = 'toast show ' + (type || '');
-  clearTimeout(_tt); _tt = setTimeout(() => t.classList.remove('show'), dur);
-}
-
-function showBanner(msg) {
-  const b = gi('demoBanner'); if (!b) return;
-  b.textContent = msg; b.style.display = 'flex';
-}
-
-/* ════════════════════════════════════════════════════════════
-   MODAL
-════════════════════════════════════════════════════════════ */
-function openM(id)  { clearErrs(); gi(id)?.classList.add('open'); }
-function closeM(id) { gi(id)?.classList.remove('open'); }
-document.addEventListener('click', e => { if (e.target.classList.contains('modal-overlay')) closeM(e.target.id); });
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => closeM(m.id));
-  if (e.key === 'Enter' && gi('authScreen')?.style.display !== 'none') {
-    if (gi('panel_login')?.style.display !== 'none') doLogin();
-    else if (gi('panel_register')?.style.display !== 'none') doRegister();
-  }
-});
-
-/* ════════════════════════════════════════════════════════════
-   NAV
-════════════════════════════════════════════════════════════ */
-const PAGE_TITLES = {
-  dashboard:'Dashboard', turmas:'Turmas', grupos:'Grupos', alunos:'Alunos',
-  frequencia:'Frequência', estrelas:'⭐ Rota das Estrelas', desafios:'Desafios',
-  kahoot:'Kahoot', recompensas:'Recompensas', metas:'Metas',
-  swot:'Matriz SWOT', w2h:'5W2H', porques:'5 Porquês',
-  ranking:'Ranking', relatorios:'Relatórios', configuracoes:'Configurações'
-};
-
-function navTo(page) {
-  activePage = page;
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === page));
-  document.querySelectorAll('.pg').forEach(p => p.classList.toggle('active', p.id === 'pg-' + page));
-  gi('pageTitle').textContent = PAGE_TITLES[page] || page;
-  gi('sidebar').classList.remove('open');
-  renderPage(page);
-}
-
-function renderAll() {
-  applyTheme();
-  document.querySelectorAll('.plat-nome').forEach(e => e.textContent = DATA.config?.nomePlat || 'EduStar');
-  document.title = DATA.config?.nomePlat || 'EduStar';
-  renderPage(activePage);
-}
-
-function renderPage(p) {
-  ({dashboard:renderDash, turmas:renderTurmas, grupos:renderGrupos, alunos:renderAlunos,
-    frequencia:renderFrequencia, estrelas:renderEstrelas, desafios:renderDesafios,
-    kahoot:renderKahoot, recompensas:renderRecomp, metas:renderMetas, swot:renderSwot,
-    w2h:renderW2H, porques:renderPorques, ranking:renderRanking,
-    configuracoes:renderConfig, relatorios:()=>{}
-  })[p]?.();
-}
-
-/* ════════════════════════════════════════════════════════════
-   DASHBOARD
-════════════════════════════════════════════════════════════ */
-function renderDash() {
-  const est = DATA.alunos.reduce((s,a) => s + (a.estrelas||0), 0);
-  const p   = DATA.alunos.reduce((s,a) => s + (a.presencas||0), 0);
-  const f   = DATA.alunos.reduce((s,a) => s + (a.faltas||0), 0);
-  const pct = (p+f) > 0 ? Math.round((p/(p+f))*100) : 0;
-  gi('dAl').textContent = DATA.alunos.length;
-  gi('dTu').textContent = DATA.turmas.length;
-  gi('dGr').textContent = DATA.grupos.length;
-  gi('dFq').textContent = pct + '%';
-  gi('dEs').textContent = est;
-  gi('dRe').textContent = DATA.recompensas.length;
-  // Top5
-  gi('dRank').innerHTML = [...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0)).slice(0,5)
-    .map((a,i)=>`<div class="rank-row"><span class="rk-pos">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span><span class="rk-nome">${esc(a.nome)}</span><span class="rk-pts">⭐${a.estrelas||0}</span></div>`)
-    .join('') || emptyHTML('🏆','Nenhum aluno ainda');
-  buildCharts();
-}
-
-function buildCharts() {
-  Chart.defaults.color = '#8A8680'; Chart.defaults.borderColor = '#E8E5DF';
-  const ctx1 = gi('cGr');
-  if (ctx1) {
-    if (charts.gr) charts.gr.destroy();
-    charts.gr = new Chart(ctx1, {
-      type:'bar',
-      data:{ labels: DATA.grupos.map(g=>g.nome),
-             datasets:[{ data: DATA.grupos.map(g=>DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0)),
-                         backgroundColor: DATA.grupos.map(g=>(g.cor||'#C9953A')+'99'),
-                         borderColor: DATA.grupos.map(g=>g.cor||'#C9953A'),
-                         borderWidth:2, borderRadius:6 }] },
-      options:{ responsive:true, plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}},y:{grid:{color:'#F1EEE8'}}} }
-    });
-  }
-  const ctx2 = gi('cFq');
-  if (ctx2) {
-    if (charts.fq) charts.fq.destroy();
-    const pres = DATA.alunos.reduce((s,a)=>s+(a.presencas||0),0);
-    const falt = DATA.alunos.reduce((s,a)=>s+(a.faltas||0),0);
-    charts.fq = new Chart(ctx2, {
-      type:'doughnut',
-      data:{ labels:['Presenças','Faltas'], datasets:[{ data:[pres||1,falt], backgroundColor:['#1B7B4A','#C0392B'], borderWidth:0 }] },
-      options:{ responsive:true, plugins:{legend:{position:'bottom'}}, cutout:'70%' }
-    });
-  }
-}
-
-/* ════════════════════════════════════════════════════════════
-   TURMAS
-════════════════════════════════════════════════════════════ */
-function renderTurmas() {
-  gi('turmasList').innerHTML = DATA.turmas.map(t => `
-    <div class="card-item">
-      <div class="ci-icon">🏫</div>
-      <div class="ci-body"><div class="ci-title">${esc(t.nome)}</div>
-        <div class="ci-sub">${DATA.alunos.filter(a=>a.turmaId===t.id).length} aluno(s) · ${t.ano||''}</div></div>
-      <div class="ci-actions">
-        <button class="ibtn" onclick="editTurma('${t.id}')">✏️</button>
-        <button class="ibtn red" onclick="delTurma('${t.id}')">🗑</button></div>
-    </div>`).join('') || emptyHTML('🏫','Nenhuma turma','Clique em + Nova Turma');
-}
-function openNewTurma() { sv('ftId',''); sv('ftNome',''); sv('ftAno',''); sv('ftCod',''); gi('mTurmaT').textContent='Nova Turma'; openM('mTurma'); }
-function editTurma(id) { const t=DATA.turmas.find(x=>x.id===id); if(!t)return; sv('ftId',id); sv('ftNome',t.nome); sv('ftAno',t.ano||''); sv('ftCod',t.codigo||''); gi('mTurmaT').textContent='Editar Turma'; openM('mTurma'); }
-async function saveTurma() {
-  const nome=gv('ftNome').trim(); if(!nome){setErr('ftNome','Obrigatório');return;}
-  const id=gv('ftId')||uid(), obj={id,nome,ano:gv('ftAno'),codigo:gv('ftCod')};
-  const i=DATA.turmas.findIndex(x=>x.id===id); if(i>=0)DATA.turmas[i]=obj; else DATA.turmas.push(obj);
-  await persist(); closeM('mTurma'); renderTurmas(); toast('Turma salva!','ok');
-}
-async function delTurma(id) {
-  if(!confirm('Remover turma?'))return;
-  DATA.turmas=DATA.turmas.filter(t=>t.id!==id);
-  DATA.alunos.forEach(a=>{if(a.turmaId===id){a.turmaId='';a.grupoId='';}});
-  await persist(); renderTurmas(); toast('Removida.','warn');
-}
-
-/* ════════════════════════════════════════════════════════════
-   GRUPOS
-════════════════════════════════════════════════════════════ */
-function renderGrupos() {
-  gi('gruposList').innerHTML = DATA.grupos.map(g => {
-    const m = DATA.alunos.filter(a=>a.grupoId===g.id);
-    return `<div class="grupo-card" style="border-top:3px solid ${g.cor||'#C9953A'}">
-      <div class="gc-top"><div class="gc-dot" style="background:${g.cor||'#C9953A'}"></div>
-        <span class="gc-nome">${esc(g.nome)}</span>
-        <button class="ibtn" onclick="editGrupo('${g.id}')">✏️</button>
-        <button class="ibtn red" onclick="delGrupo('${g.id}')">🗑</button></div>
-      <div class="gc-pts">⭐ ${m.reduce((s,a)=>s+(a.estrelas||0),0)}</div>
-      <div class="gc-sub">${m.length} integrante(s)</div>
-      <div class="gc-members">${m.slice(0,6).map(a=>`<span class="chip">${esc(a.nome.split(' ')[0])}</span>`).join('')}</div>
-    </div>`;
-  }).join('') || emptyHTML('🏆','Nenhum grupo','Clique em + Novo Grupo');
-}
-function openNewGrupo() { sv('fgId',''); sv('fgNome',''); sv('fgCor','#C9953A'); gi('mGrupoT').textContent='Novo Grupo'; openM('mGrupo'); }
-function editGrupo(id) { const g=DATA.grupos.find(x=>x.id===id); if(!g)return; sv('fgId',id); sv('fgNome',g.nome); sv('fgCor',g.cor||'#C9953A'); gi('mGrupoT').textContent='Editar Grupo'; openM('mGrupo'); }
-async function saveGrupo() {
-  const nome=gv('fgNome').trim(); if(!nome){setErr('fgNome','Obrigatório');return;}
-  const id=gv('fgId')||uid(), obj={id,nome,cor:gv('fgCor')||'#C9953A'};
-  const i=DATA.grupos.findIndex(x=>x.id===id); if(i>=0)DATA.grupos[i]=obj; else DATA.grupos.push(obj);
-  await persist(); closeM('mGrupo'); renderGrupos(); toast('Grupo salvo!','ok');
-}
-async function delGrupo(id) {
-  if(!confirm('Remover grupo?'))return;
-  DATA.grupos=DATA.grupos.filter(g=>g.id!==id);
-  DATA.alunos.forEach(a=>{if(a.grupoId===id)a.grupoId='';});
-  await persist(); renderGrupos(); toast('Removido.','warn');
-}
-
-/* ════════════════════════════════════════════════════════════
-   ALUNOS
-════════════════════════════════════════════════════════════ */
-function renderAlunos() {
-  const q=gv('sAl').toLowerCase(), tF=gv('fAlT'), gF=gv('fAlG');
-  let list=DATA.alunos;
-  if(q)  list=list.filter(a=>a.nome.toLowerCase().includes(q)||a.id.toLowerCase().includes(q));
-  if(tF) list=list.filter(a=>a.turmaId===tF);
-  if(gF) list=list.filter(a=>a.grupoId===gF);
-  fillSel('fAlT',DATA.turmas,'Todas as turmas',tF);
-  fillSel('fAlG',DATA.grupos,'Todos os grupos',gF);
-  gi('alunosList').innerHTML = list.map(a => {
-    const t=DATA.turmas.find(x=>x.id===a.turmaId), g=DATA.grupos.find(x=>x.id===a.grupoId);
-    const tot=(a.presencas||0)+(a.faltas||0), pct=tot>0?Math.round(((a.presencas||0)/tot)*100):null;
-    return `<div class="aluno-row">
-      <div class="ar-av" ${g?`style="background:${g.cor}22;border-color:${g.cor}55;color:${g.cor}"`:''}>${initials(a.nome)}</div>
-      <div class="ar-body">
-        <div class="ar-nome">${esc(a.nome)} <span class="badge gray">${a.id}</span></div>
-        <div class="ar-meta">
-          ${t?`<span class="badge blue">${esc(t.nome)}</span>`:''}
-          ${g?`<span class="badge" style="background:${g.cor}22;color:${g.cor};border-color:${g.cor}44">${esc(g.nome)}</span>`:''}
-          ${pct!==null?`<span class="badge ${pct>=75?'green':pct>=50?'warn':'red'}">${pct}%</span>`:''}
-        </div>
-      </div>
-      <div class="ar-est">⭐ ${a.estrelas||0}</div>
-      <div class="ar-actions">
-        <button class="ibtn" onclick="editAluno('${a.id}')">✏️</button>
-        <button class="ibtn red" onclick="delAluno('${a.id}')">🗑</button></div>
-    </div>`;
-  }).join('') || emptyHTML('👥','Nenhum aluno encontrado');
-}
-function openNewAluno() { sv('faId',''); sv('faNome',''); sv('faEmail',''); sv('faTel',''); fillSel('faTurma',DATA.turmas,'Sem turma',''); fillSel('faGrupo',DATA.grupos,'Sem grupo',''); gi('mAlunoT').textContent='Novo Aluno'; openM('mAluno'); }
-function editAluno(id) { const a=DATA.alunos.find(x=>x.id===id); if(!a)return; sv('faId',id); sv('faNome',a.nome); sv('faEmail',a.email||''); sv('faTel',a.tel||''); fillSel('faTurma',DATA.turmas,'Sem turma',a.turmaId||''); fillSel('faGrupo',DATA.grupos,'Sem grupo',a.grupoId||''); gi('mAlunoT').textContent='Editar Aluno'; openM('mAluno'); }
-async function saveAluno() {
-  const nome=gv('faNome').trim(); if(!nome){setErr('faNome','Obrigatório');return;}
-  const id=gv('faId')||uid();
-  const ex=DATA.alunos.find(a=>a.id===id)||{estrelas:0,presencas:0,faltas:0,historico:[]};
-  const obj={...ex,id,nome,email:gv('faEmail'),tel:gv('faTel'),turmaId:gv('faTurma'),grupoId:gv('faGrupo')};
-  const i=DATA.alunos.findIndex(a=>a.id===id); if(i>=0)DATA.alunos[i]=obj; else DATA.alunos.push(obj);
-  await persist(); closeM('mAluno'); renderAlunos(); toast('Aluno salvo!','ok');
-}
-async function delAluno(id) {
-  if(!confirm('Remover aluno?'))return;
-  DATA.alunos=DATA.alunos.filter(a=>a.id!==id);
-  await persist(); renderAlunos(); toast('Removido.','warn');
-}
-
-/* ════════════════════════════════════════════════════════════
-   FREQUÊNCIA
-════════════════════════════════════════════════════════════ */
-function renderFrequencia() {
-  fillSel('freqTurma',DATA.turmas,'Todas as turmas',activeTurmaId||'');
-  if (!gi('freqData').value) gi('freqData').value = today();
-  renderFreqList();
-}
-function renderFreqList() {
-  const tId=gv('freqTurma'); activeTurmaId=tId;
-  let list=DATA.alunos; if(tId)list=list.filter(a=>a.turmaId===tId);
-  if(!list.length){gi('freqList').innerHTML=emptyHTML('📅','Nenhum aluno','Selecione uma turma ou crie alunos');gi('freqSummary').innerHTML='';return;}
-  list.forEach(a=>{if(!freqState[a.id])freqState[a.id]='presente';});
-  const pres=list.filter(a=>freqState[a.id]==='presente').length;
-  const aus=list.filter(a=>freqState[a.id]==='ausente').length;
-  const atr=list.filter(a=>freqState[a.id]==='atraso').length;
-  gi('freqSummary').innerHTML=`<span>✅ <b>${pres}</b> presentes</span><span>❌ <b>${aus}</b> faltas</span><span>⏰ <b>${atr}</b> atrasos</span>${list.every(a=>freqState[a.id]==='presente')?'<span class="badge green">🎯 Turma completa — bônus!</span>':''}`;
-  gi('freqList').innerHTML=list.map(a=>`
-    <div class="freq-row" id="fr_${a.id}">
-      <div class="fr-nome">${esc(a.nome)}</div>
-      <div class="freq-btns">
-        <button class="fq-btn presente ${freqState[a.id]==='presente'?'active':''}" onclick="setFq('${a.id}','presente')">✅ Presente</button>
-        <button class="fq-btn atraso   ${freqState[a.id]==='atraso'?'active':''}"   onclick="setFq('${a.id}','atraso')">⏰ Atraso</button>
-        <button class="fq-btn ausente  ${freqState[a.id]==='ausente'?'active':''}"  onclick="setFq('${a.id}','ausente')">❌ Falta</button>
-      </div>
-    </div>`).join('');
-}
-function setFq(id,val) {
-  freqState[id]=val;
-  const row=gi('fr_'+id); if(!row)return;
-  row.querySelectorAll('.fq-btn').forEach(b=>b.classList.remove('active'));
-  row.querySelector(`.fq-btn.${val}`)?.classList.add('active');
-  const list=DATA.alunos.filter(a=>!activeTurmaId||a.turmaId===activeTurmaId);
-  const pres=list.filter(a=>freqState[a.id]==='presente').length;
-  gi('freqSummary').innerHTML=`<span>✅ <b>${pres}</b> presentes</span><span>❌ <b>${list.filter(a=>freqState[a.id]==='ausente').length}</b> faltas</span><span>⏰ <b>${list.filter(a=>freqState[a.id]==='atraso').length}</b> atrasos</span>${list.every(a=>freqState[a.id]==='presente')?'<span class="badge green">🎯 Turma completa — bônus!</span>':''}`;
-}
-async function salvarFreq() {
-  const tId=gv('freqTurma'), data=gv('freqData')||today();
-  let list=DATA.alunos; if(tId)list=list.filter(a=>a.turmaId===tId);
-  if(!list.length){toast('Nenhum aluno.','warn');return;}
-  const cfg=DATA.config, todos=list.every(a=>freqState[a.id]==='presente');
-  list.forEach(a=>{
-    const s=freqState[a.id]||'presente';
-    let d=s==='presente'?(cfg.presenca||10):s==='atraso'?(cfg.atraso||-2):(cfg.falta||-5);
-    if(todos&&s==='presente')d+=(cfg.bonus100||10);
-    a.estrelas=Math.max(0,(a.estrelas||0)+d);
-    a.presencas=(a.presencas||0)+(s==='presente'?1:0);
-    a.faltas=(a.faltas||0)+(s==='ausente'?1:0);
-    if(!a.historico)a.historico=[];
-    a.historico.push({data,status:s,delta:d});
-  });
-  freqState={};
-  await persist(); renderFrequencia(); toast('✅ Frequência salva!','ok');
-}
-
-/* ════════════════════════════════════════════════════════════
-   ESTRELAS
-════════════════════════════════════════════════════════════ */
-function renderEstrelas() {
-  gi('estGrupos').innerHTML=[...DATA.grupos].sort((a,b)=>{
-    const ea=DATA.alunos.filter(x=>x.grupoId===a.id).reduce((s,x)=>s+(x.estrelas||0),0);
-    const eb=DATA.alunos.filter(x=>x.grupoId===b.id).reduce((s,x)=>s+(x.estrelas||0),0);
-    return eb-ea;
-  }).map((g,i)=>{
-    const est=DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0);
-    return `<div class="grupo-card" style="border-top:3px solid ${g.cor||'#C9953A'}">
-      <div class="gc-top"><div class="gc-dot" style="background:${g.cor||'#C9953A'}"></div><span class="gc-nome">${esc(g.nome)}</span></div>
-      <div class="gc-pts">⭐ ${est}</div><div class="gc-sub">${['🥇','🥈','🥉'][i]||'#'+(i+1)} lugar</div></div>`;
-  }).join('')||emptyHTML('🏆','Nenhum grupo ainda');
-  const sorted=[...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0));
-  const max=sorted[0]?.estrelas||1;
-  gi('estIndiv').innerHTML=sorted.map((a,i)=>{
-    const g=DATA.grupos.find(x=>x.id===a.grupoId);
-    return `<div class="aluno-row">
-      <span class="rk-pos-lg">${['🥇','🥈','🥉'][i]||`<span class="rk-n">${i+1}</span>`}</span>
-      <div class="ar-body">
-        <div class="ar-nome">${esc(a.nome)}</div>
-        <div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${Math.round(((a.estrelas||0)/max)*100)}%;background:${g?.cor||'#C9953A'}"></div></div></div>
-      </div>
-      <div class="ar-est">⭐ ${a.estrelas||0}</div>
-      <div class="ar-actions">
-        <button class="ibtn gold" onclick="addEst('${a.id}',1)">+</button>
-        <button class="ibtn" onclick="addEst('${a.id}',-1)">−</button></div>
-    </div>`;
-  }).join('')||emptyHTML('⭐','Nenhum aluno ainda');
-}
-async function addEst(id,delta) {
-  const a=DATA.alunos.find(x=>x.id===id); if(!a)return;
-  a.estrelas=Math.max(0,(a.estrelas||0)+delta);
-  if(!a.historico)a.historico=[];
-  a.historico.push({data:today(),status:'manual',delta});
-  await persist(); renderEstrelas();
-  toast(delta>0?'⭐ Estrela adicionada!':'Estrela removida.',delta>0?'ok':'warn');
-}
-
-/* ════════════════════════════════════════════════════════════
-   DESAFIOS
-════════════════════════════════════════════════════════════ */
-function renderDesafios() {
-  gi('desafiosList').innerHTML=DATA.desafios.map(d=>`
-    <div class="card-item">
-      <div class="ci-icon">🎯</div>
-      <div class="ci-body"><div class="ci-title">${esc(d.nome)}</div><div class="ci-sub">+${d.pts||0} estrelas${d.descricao?' · '+esc(d.descricao):''}</div></div>
-      <div class="ci-actions">
-        <button class="ibtn gold" onclick="registrarDesafio('${d.id}')">✅ Registrar</button>
-        <button class="ibtn" onclick="editDesafio('${d.id}')">✏️</button>
-        <button class="ibtn red" onclick="delDesafio('${d.id}')">🗑</button></div>
-    </div>`).join('')||emptyHTML('🎯','Nenhum desafio','Crie desafios para motivar os alunos');
-}
-function openNewDesafio(){sv('fdId','');sv('fdNome','');sv('fdDesc','');sv('fdPts','5');gi('mDesafioT').textContent='Novo Desafio';openM('mDesafio');}
-function editDesafio(id){const d=DATA.desafios.find(x=>x.id===id);if(!d)return;sv('fdId',id);sv('fdNome',d.nome);sv('fdDesc',d.descricao||'');sv('fdPts',d.pts||0);gi('mDesafioT').textContent='Editar Desafio';openM('mDesafio');}
-async function saveDesafio(){
-  const nome=gv('fdNome').trim();if(!nome){setErr('fdNome','Obrigatório');return;}
-  const id=gv('fdId')||uid(),obj={id,nome,descricao:gv('fdDesc'),pts:parseInt(gv('fdPts'))||5};
-  const i=DATA.desafios.findIndex(x=>x.id===id);if(i>=0)DATA.desafios[i]=obj;else DATA.desafios.push(obj);
-  await persist();closeM('mDesafio');renderDesafios();toast('Desafio salvo!','ok');
-}
-async function delDesafio(id){if(!confirm('Remover?'))return;DATA.desafios=DATA.desafios.filter(d=>d.id!==id);await persist();renderDesafios();}
-function registrarDesafio(id){const d=DATA.desafios.find(x=>x.id===id);if(!d)return;sv('frDId',id);gi('mRegDNome').textContent=d.nome;fillSel('frDAluno',DATA.alunos,'Selecione o aluno','');openM('mRegD');}
-async function confirmarDesafio(){
-  const did=gv('frDId'),aid=gv('frDAluno');
-  const d=DATA.desafios.find(x=>x.id===did),a=DATA.alunos.find(x=>x.id===aid);
-  if(!d||!a){toast('Selecione um aluno.','warn');return;}
-  a.estrelas=(a.estrelas||0)+d.pts;
-  if(!a.historico)a.historico=[];
-  a.historico.push({data:today(),status:'desafio:'+d.nome,delta:d.pts});
-  await persist();closeM('mRegD');toast(`⭐ +${d.pts} para ${a.nome}!`,'ok');
-}
-
-/* ════════════════════════════════════════════════════════════
-   KAHOOT
-════════════════════════════════════════════════════════════ */
-function renderKahoot(){
-  const min=DATA.config.kahootFreqMin||75;
-  gi('kahootList').innerHTML=[...DATA.kahoot].sort((a,b)=>new Date(b.data)-new Date(a.data)).map((k,i)=>{
-    const el=(k.freq||0)>=min;
-    const premios={1:'🍫 Barra de chocolate',2:'🍬🍬 2 bombons',3:'🍬 1 bombom'};
-    return `<tr><td>${i+1}</td><td>${esc(k.nomeAluno)}</td>
-      <td>${['🥇 1º','🥈 2º','🥉 3º'][k.pos-1]||k.pos+'º'}</td>
-      <td><span class="badge ${el?'green':'red'}">${k.freq||0}%</span></td>
-      <td>${fmtDate(k.data)}</td>
-      <td>${el?premios[k.pos]||'—':'<span style="color:var(--t3)">Não elegível</span>'}</td>
-      <td><button class="ibtn red" onclick="delKahoot('${k.id}')">🗑</button></td></tr>`;
-  }).join('');
-  if(!DATA.kahoot.length)gi('kahootList').innerHTML=`<tr><td colspan="7">${emptyHTML('🎮','Nenhum resultado registrado')}</td></tr>`;
-}
-function openNewKahoot(){fillSel('fkAluno',DATA.alunos,'Selecione o aluno','');sv('fkPos','1');sv('fkFreq','');sv('fkData',today());openM('mKahoot');}
-async function saveKahoot(){
-  const aid=gv('fkAluno'),a=DATA.alunos.find(x=>x.id===aid);
-  if(!a){toast('Selecione um aluno.','warn');return;}
-  DATA.kahoot.push({id:uid(),alunoId:aid,nomeAluno:a.nome,pos:parseInt(gv('fkPos'))||1,freq:parseInt(gv('fkFreq'))||0,data:gv('fkData')||today()});
-  await persist();closeM('mKahoot');renderKahoot();toast('Resultado registrado!','ok');
-}
-async function delKahoot(id){DATA.kahoot=DATA.kahoot.filter(k=>k.id!==id);await persist();renderKahoot();}
-
-/* ════════════════════════════════════════════════════════════
-   RECOMPENSAS
-════════════════════════════════════════════════════════════ */
-function renderRecomp(){
-  gi('recompList').innerHTML=DATA.recompensas.map(r=>`
-    <div class="card-item"><div class="ci-icon">🎁</div>
-      <div class="ci-body"><div class="ci-title">${esc(r.nome)}</div>
-        <div class="ci-sub">⭐ ${r.estrelas||0} necessárias · Estoque: ${r.estoque!=null?r.estoque:'∞'}${r.descricao?' · '+esc(r.descricao):''}</div></div>
-      <div class="ci-actions">
-        <button class="ibtn" onclick="editRecomp('${r.id}')">✏️</button>
-        <button class="ibtn red" onclick="delRecomp('${r.id}')">🗑</button></div>
-    </div>`).join('')||emptyHTML('🎁','Nenhuma recompensa','Crie recompensas para motivar');
-}
-function openNewRecomp(){sv('frId','');sv('frNome','');sv('frDesc','');sv('frEst','');sv('frEstq','');gi('mRecompT').textContent='Nova Recompensa';openM('mRecomp');}
-function editRecomp(id){const r=DATA.recompensas.find(x=>x.id===id);if(!r)return;sv('frId',id);sv('frNome',r.nome);sv('frDesc',r.descricao||'');sv('frEst',r.estrelas||'');sv('frEstq',r.estoque!=null?r.estoque:'');gi('mRecompT').textContent='Editar Recompensa';openM('mRecomp');}
-async function saveRecomp(){
-  const nome=gv('frNome').trim();if(!nome){setErr('frNome','Obrigatório');return;}
-  const id=gv('frId')||uid(),eq=gv('frEstq');
-  const obj={id,nome,descricao:gv('frDesc'),estrelas:parseInt(gv('frEst'))||0,estoque:eq===''?null:parseInt(eq)};
-  const i=DATA.recompensas.findIndex(x=>x.id===id);if(i>=0)DATA.recompensas[i]=obj;else DATA.recompensas.push(obj);
-  await persist();closeM('mRecomp');renderRecomp();toast('Recompensa salva!','ok');
-}
-async function delRecomp(id){if(!confirm('Remover?'))return;DATA.recompensas=DATA.recompensas.filter(r=>r.id!==id);await persist();renderRecomp();}
-
-/* ════════════════════════════════════════════════════════════
-   METAS
-════════════════════════════════════════════════════════════ */
-function renderMetas(){
-  gi('metasList').innerHTML=DATA.metas.length?`<table class="data-table">
-    <thead><tr><th>Meta</th><th>Responsável</th><th>Prazo</th><th>Status</th><th>Progresso</th><th></th></tr></thead>
-    <tbody>${DATA.metas.map(m=>`<tr>
-      <td><b>${esc(m.nome)}</b></td><td>${esc(m.resp||'—')}</td><td>${fmtDate(m.prazo)}</td>
-      <td><span class="badge ${m.status==='concluida'?'green':m.status==='andamento'?'warn':'gray'}">${{pendente:'Pendente',andamento:'Em andamento',concluida:'Concluída'}[m.status]||m.status}</span></td>
-      <td><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${m.prog||0}%"></div></div><span class="prog-lbl">${m.prog||0}%</span></div></td>
-      <td><button class="ibtn" onclick="editMeta('${m.id}')">✏️</button><button class="ibtn red" onclick="delMeta('${m.id}')">🗑</button></td>
-    </tr>`).join('')}</tbody></table>`:emptyHTML('🎯','Nenhuma meta');
-}
-function openNewMeta(){['fmId','fmNome','fmResp','fmPrazo','fmObs'].forEach(id=>sv(id,''));sv('fmStatus','pendente');sv('fmProg','0');gi('mMetaT').textContent='Nova Meta';openM('mMeta');}
-function editMeta(id){const m=DATA.metas.find(x=>x.id===id);if(!m)return;sv('fmId',id);sv('fmNome',m.nome);sv('fmResp',m.resp||'');sv('fmPrazo',m.prazo||'');sv('fmStatus',m.status||'pendente');sv('fmProg',m.prog||0);sv('fmObs',m.obs||'');gi('mMetaT').textContent='Editar Meta';openM('mMeta');}
-async function saveMeta(){
-  const nome=gv('fmNome').trim();if(!nome){setErr('fmNome','Obrigatório');return;}
-  const id=gv('fmId')||uid(),obj={id,nome,resp:gv('fmResp'),prazo:gv('fmPrazo'),status:gv('fmStatus'),prog:parseInt(gv('fmProg'))||0,obs:gv('fmObs')};
-  const i=DATA.metas.findIndex(x=>x.id===id);if(i>=0)DATA.metas[i]=obj;else DATA.metas.push(obj);
-  await persist();closeM('mMeta');renderMetas();toast('Meta salva!','ok');
-}
-async function delMeta(id){if(!confirm('Remover?'))return;DATA.metas=DATA.metas.filter(m=>m.id!==id);await persist();renderMetas();}
-
-/* ════════════════════════════════════════════════════════════
-   SWOT
-════════════════════════════════════════════════════════════ */
-function renderSwot(){
-  ['S','W','O','T'].forEach(q=>{
-    gi('swot_'+q).innerHTML=DATA.swot.filter(c=>c.q===q).map(c=>
-      `<div class="swot-item"><span>${esc(c.txt)}</span><button class="ibtn red sm" onclick="delSwot('${c.id}')">✕</button></div>`
-    ).join('')||'<p class="swot-empty">Clique em + para adicionar</p>';
-  });
-}
-function openSwot(q){sv('fsQ',q);sv('fsTxt','');openM('mSwot');}
-async function saveSwot(){const txt=gv('fsTxt').trim();if(!txt){setErr('fsTxt','Obrigatório');return;}DATA.swot.push({id:uid(),q:gv('fsQ'),txt});await persist();closeM('mSwot');renderSwot();toast('Adicionado!','ok');}
-async function delSwot(id){DATA.swot=DATA.swot.filter(c=>c.id!==id);await persist();renderSwot();}
-
-/* ════════════════════════════════════════════════════════════
-   5W2H
-════════════════════════════════════════════════════════════ */
-function renderW2H(){
-  const q=gv('sW2H').toLowerCase(),fst=gv('fltW2H');
-  let list=DATA.w2h;
-  if(q)list=list.filter(a=>(a.what||'').toLowerCase().includes(q)||(a.who||'').toLowerCase().includes(q));
-  if(fst)list=list.filter(a=>fst==='done'?a.done:!a.done);
-  const done=DATA.w2h.filter(x=>x.done).length,tot=DATA.w2h.length;
-  const pct=tot?Math.round((done/tot)*100):0;
-  gi('w2hPf').style.width=pct+'%'; gi('w2hPl').textContent=`${done}/${tot} (${pct}%)`;
-  gi('w2hList').innerHTML=list.map(a=>`
-    <div class="w2h-card ${a.done?'done':''}">
-      <div class="w2h-head"><span class="w2h-title">${esc(a.what||'Sem título')}</span>
-        <button class="ibtn sm" onclick="togW2H('${a.id}')">${a.done?'↩ Reabrir':'✅ Concluir'}</button>
-        <button class="ibtn sm" onclick="editW2H('${a.id}')">✏️</button>
-        <button class="ibtn sm red" onclick="delW2H('${a.id}')">🗑</button></div>
-      <div class="w2h-tags">${[['why','Por quê'],['who','Quem'],['where','Onde'],['when','Quando'],['how','Como'],['howmuch','Custo']].filter(([k])=>a[k]).map(([k,l])=>`<span class="w2h-tag"><b>${l}:</b> ${esc(a[k])}</span>`).join('')}</div>
-    </div>`).join('')||emptyHTML('📋','Nenhuma ação');
-}
-function openNewW2H(){['fwId','fwWhat','fwWhy','fwWho','fwWhere','fwWhen','fwHow','fwHM'].forEach(id=>sv(id,''));openM('mW2H');}
-function editW2H(id){const a=DATA.w2h.find(x=>x.id===id);if(!a)return;sv('fwId',id);sv('fwWhat',a.what||'');sv('fwWhy',a.why||'');sv('fwWho',a.who||'');sv('fwWhere',a.where||'');sv('fwWhen',a.when||'');sv('fwHow',a.how||'');sv('fwHM',a.howmuch||'');openM('mW2H');}
-async function saveW2H(){
-  const what=gv('fwWhat').trim();if(!what){setErr('fwWhat','O "O quê?" é obrigatório');return;}
-  const id=gv('fwId')||uid();
-  const obj={id,what,why:gv('fwWhy'),who:gv('fwWho'),where:gv('fwWhere'),when:gv('fwWhen'),how:gv('fwHow'),howmuch:gv('fwHM'),done:false};
-  const i=DATA.w2h.findIndex(x=>x.id===id);if(i>=0){DATA.w2h[i]={...DATA.w2h[i],...obj,done:DATA.w2h[i].done};}else DATA.w2h.push(obj);
-  await persist();closeM('mW2H');renderW2H();toast('Ação salva!','ok');
-}
-async function delW2H(id){DATA.w2h=DATA.w2h.filter(x=>x.id!==id);await persist();renderW2H();}
-async function togW2H(id){const a=DATA.w2h.find(x=>x.id===id);if(a){a.done=!a.done;await persist();renderW2H();}}
-
-/* ════════════════════════════════════════════════════════════
-   5 PORQUÊS
-════════════════════════════════════════════════════════════ */
-function renderPorques(){
-  gi('porquesList').innerHTML=DATA.porques.map(p=>`
-    <div class="p5-card">
-      <div class="p5-head"><div class="p5-prob">🔍 ${esc(p.prob)}</div><button class="ibtn sm red" onclick="delPorque('${p.id}')">🗑</button></div>
-      <ol class="p5-list">${[p.p1,p.p2,p.p3,p.p4,p.p5].filter(Boolean).map(x=>`<li>${esc(x)}</li>`).join('')}</ol>
-      ${p.causa?`<div class="p5-causa">✅ Causa raiz: ${esc(p.causa)}</div>`:''}
-    </div>`).join('')||emptyHTML('🔍','Nenhuma análise','Investigue causas raiz com os 5 Porquês');
-}
-function openNewPorque(){['fpId','fpProb','fp1','fp2','fp3','fp4','fp5','fpCausa'].forEach(id=>sv(id,''));openM('mPorque');}
-async function savePorque(){
-  const prob=gv('fpProb').trim();if(!prob){setErr('fpProb','Obrigatório');return;}
-  const id=gv('fpId')||uid();
-  const obj={id,prob,p1:gv('fp1'),p2:gv('fp2'),p3:gv('fp3'),p4:gv('fp4'),p5:gv('fp5'),causa:gv('fpCausa')};
-  const i=DATA.porques.findIndex(x=>x.id===id);if(i>=0)DATA.porques[i]=obj;else DATA.porques.push(obj);
-  await persist();closeM('mPorque');renderPorques();toast('Análise salva!','ok');
-}
-async function delPorque(id){if(!confirm('Remover?'))return;DATA.porques=DATA.porques.filter(x=>x.id!==id);await persist();renderPorques();}
-
-/* ════════════════════════════════════════════════════════════
-   RANKING
-════════════════════════════════════════════════════════════ */
-function renderRanking(){
-  const sorted=[...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0));
-  gi('rankIndiv').innerHTML=sorted.length?`<table class="data-table">
-    <thead><tr><th>#</th><th>Aluno</th><th>Turma</th><th>Grupo</th><th>⭐</th><th>Presença%</th></tr></thead>
-    <tbody>${sorted.map((a,i)=>{
-      const t=DATA.turmas.find(x=>x.id===a.turmaId),g=DATA.grupos.find(x=>x.id===a.grupoId);
-      const tot=(a.presencas||0)+(a.faltas||0),pct=tot>0?Math.round(((a.presencas||0)/tot)*100):null;
-      return `<tr><td><b>${['🥇','🥈','🥉'][i]||i+1}</b></td><td>${esc(a.nome)}</td>
-        <td>${t?esc(t.nome):'—'}</td><td>${g?esc(g.nome):'—'}</td>
-        <td><b style="color:var(--gold)">⭐${a.estrelas||0}</b></td>
-        <td>${pct!==null?`<span class="badge ${pct>=75?'green':pct>=50?'warn':'red'}">${pct}%</span>`:'—'}</td></tr>`;
-    }).join('')}</tbody></table>`:emptyHTML('🏆','Nenhum aluno ainda');
-  const gs=DATA.grupos.map(g=>({...g,est:DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0)})).sort((a,b)=>b.est-a.est);
-  gi('rankGrupos').innerHTML=gs.map((g,i)=>`<div class="rank-row">
-    <span class="rk-pos">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span>
-    <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${g.cor||'#ccc'};margin-right:5px"></span>
-    <span class="rk-nome">${esc(g.nome)}</span><span class="rk-pts">⭐${g.est}</span></div>`
-  ).join('')||emptyHTML('🏆','Nenhum grupo');
-}
-
-/* ════════════════════════════════════════════════════════════
-   RELATÓRIOS
-════════════════════════════════════════════════════════════ */
-function gerarRelatorio(tipo){
-  const nomes={geral:'Geral',frequencia:'Frequência',estrelas:'Estrelas',kahoot:'Kahoot',metas:'Metas'};
-  const tbl=(hs,rows)=>`<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:13px">
-    <thead style="background:#f5f3ef"><tr>${hs.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
-    <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
-  let body='';
-  if(tipo==='geral'||tipo==='estrelas'){
-    body+='<h2>Ranking de Alunos</h2>'+tbl(['#','Nome','Turma','Grupo','⭐','Presenças','Faltas'],
-      [...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0)).map((a,i)=>[i+1,a.nome,DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'—',DATA.grupos.find(g=>g.id===a.grupoId)?.nome||'—',a.estrelas||0,a.presencas||0,a.faltas||0]));
-    body+='<h2 style="margin-top:20px">Ranking de Grupos</h2>'+tbl(['#','Grupo','⭐ Total'],
-      DATA.grupos.map((g,i)=>[i+1,g.nome,DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0)]).sort((a,b)=>b[2]-a[2]));
-  }
-  if(tipo==='frequencia')body+=tbl(['Nome','Turma','Presenças','Faltas','Freq%'],DATA.alunos.map(a=>{const tot=(a.presencas||0)+(a.faltas||0);return[a.nome,DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'—',a.presencas||0,a.faltas||0,tot>0?Math.round(((a.presencas||0)/tot)*100)+'%':'—'];}));
-  if(tipo==='kahoot'){
-    const min=DATA.config.kahootFreqMin||75,premios={1:'Barra de chocolate',2:'2 bombons',3:'1 bombom'};
-    body+=tbl(['Aluno','Posição','Freq%','Data','Prêmio'],[...DATA.kahoot].sort((a,b)=>new Date(b.data)-new Date(a.data)).map(k=>[(k.nomeAluno,k.pos+'º',k.freq+'%',fmtDate(k.data),(k.freq||0)>=min?premios[k.pos]||'—':'Não elegível')]));
-  }
-  if(tipo==='metas')body+=tbl(['Meta','Responsável','Prazo','Status','Progresso'],DATA.metas.map(m=>[m.nome,m.resp||'—',fmtDate(m.prazo),m.status||'pendente',(m.prog||0)+'%']));
-  if(!body)body='<p>Sem dados.</p>';
-  const w=window.open('','_blank');
-  if(w){w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>EduStar — ${nomes[tipo]||tipo}</title></head><body style="font-family:Arial,sans-serif;margin:40px"><h1>EduStar — ${nomes[tipo]||tipo}</h1><p><small>Gerado em ${new Date().toLocaleString('pt-BR')}</small></p>${body}</body></html>`);w.document.close();setTimeout(()=>w.print(),400);}
-  toast('Relatório gerado!','ok');
-}
-function exportCSV(){
-  const rows=[['Nome','ID','Turma','Grupo','Estrelas','Presenças','Faltas','Freq%']];
-  DATA.alunos.forEach(a=>{const tot=(a.presencas||0)+(a.faltas||0);rows.push([a.nome,a.id,DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'',DATA.grupos.find(g=>g.id===a.grupoId)?.nome||'',a.estrelas||0,a.presencas||0,a.faltas||0,tot>0?Math.round(((a.presencas||0)/tot)*100)+'%':'']);});
-  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const u=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  Object.assign(document.createElement('a'),{href:u,download:'edustar_alunos.csv'}).click();
-  URL.revokeObjectURL(u);toast('CSV exportado!','ok');
-}
-
-/* ════════════════════════════════════════════════════════════
-   CONFIGURAÇÕES
-════════════════════════════════════════════════════════════ */
-function renderConfig(){
-  const c=DATA.config||{};
-  sv('cfgNomePlat',c.nomePlat||'EduStar'); sv('cfgCor2',c.cor2||'#C9953A');
-  const dm=gi('cfgDarkMode'); if(dm)dm.checked=!!c.darkMode;
-  syncSwatches(c.cor2||'#C9953A');
-  sv('cfgPresenca',c.presenca??10); sv('cfgPartic',c.participacao??5);
-  sv('cfgAtraso',c.atraso??-2); sv('cfgFalta',c.falta??-5);
-  sv('cfgBonus100',c.bonus100??10); sv('cfgKFreq',c.kahootFreqMin??75);
-  sv('cfgMetaEst',c.metaEstrMes??50);
-  // Aba escola
-  const en=gi('cfgEscolaNome'); if(en)en.textContent=USER?.schoolNome||'—';
-  const ec=gi('cfgEscolaCodigo'); if(ec){ec.textContent=USER?.schoolId||'—';ec.id='codigoDisplay';}
-  const bt=gi('btnCopiarCfg'); if(bt)bt.style.display=USER?.schoolId?'inline-flex':'none';
-  renderFbStatus();
-}
-async function saveConfig(){
-  DATA.config={
-    nomePlat:gv('cfgNomePlat')||'EduStar', cor2:gv('cfgCor2')||'#C9953A',
-    darkMode:gi('cfgDarkMode')?.checked||false,
-    presenca:parseInt(gv('cfgPresenca'))||10, participacao:parseInt(gv('cfgPartic'))||5,
-    atraso:parseInt(gv('cfgAtraso'))||-2, falta:parseInt(gv('cfgFalta'))||-5,
-    bonus100:parseInt(gv('cfgBonus100'))||10, kahootFreqMin:parseInt(gv('cfgKFreq'))||75,
-    metaEstrMes:parseInt(gv('cfgMetaEst'))||50
-  };
-  await persist(); applyTheme(); toast('✅ Configurações salvas!','ok');
-}
-
-function cfgTabSwitch(tab,btn){
-  document.querySelectorAll('.cfg-tab-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.cfg-tab-panel').forEach(p=>p.style.display='none');
-  btn.classList.add('active');
-  const p=gi('cfgTab_'+tab);if(p)p.style.display='block';
-  if(tab==='status')renderFbStatus();
-  if(tab==='escola'){
-    const en=gi('cfgEscolaNome');if(en)en.textContent=USER?.schoolNome||'—';
-    const ec=gi('cfgEscolaCodigo');if(ec){ec.textContent=USER?.schoolId||'—';ec.id='codigoDisplay';}
-    const bt=gi('btnCopiarCfg');if(bt)bt.style.display=USER?.schoolId?'inline-flex':'none';
-  }
-}
-
-function renderFbStatus(){
-  const el=gi('fbStatusContent');if(!el)return;
-  const checks=[
-    [FB_OK, 'Firebase configurado', FB_OK?'Credenciais detectadas no código.':'Cole seu firebaseConfig no início do index.html'],
-    [FB_OK&&!!fbAuth&&!!fbDB, 'Conexão estabelecida', FB_OK&&fbAuth?'Auth e Firestore conectados.':'Verifique as credenciais.'],
-    [!!USER?.schoolId, 'Escola vinculada', USER?.schoolId?`Código: <b>${USER.schoolId}</b> — ${USER.schoolNome||''}` : 'Entre ou crie uma escola para compartilhar dados.'],
-    [FB_OK&&!!USER?.schoolId, 'Dados na nuvem compartilhados', FB_OK&&USER?.schoolId?'Todos os membros veem os mesmos dados em tempo real.':'Configure Firebase e vincule uma escola.']
-  ];
-  el.innerHTML=checks.map(([ok,label,detail])=>`
-    <div style="display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:18px;flex-shrink:0">${ok?'✅':'❌'}</span>
-      <div><div style="font-size:13px;font-weight:600;color:${ok?'var(--green)':'var(--red)'}">${label}</div>
-        <div style="font-size:12px;color:var(--t3);margin-top:2px">${detail}</div></div>
-    </div>`).join('');
-}
-
-/* ── Tema ── */
-function applyTheme(){
-  const c=DATA.config||{};
-  document.documentElement.classList.toggle('dark',!!c.darkMode);
-  const db=gi('darkBtn');if(db)db.textContent=c.darkMode?'☀️':'🌙';
-  if(c.cor2){
-    const root=document.documentElement;
-    root.style.setProperty('--gold',c.cor2);
-    const h=c.cor2.replace('#',''),r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
-    root.style.setProperty('--gold-l',`rgba(${r},${g},${b},.12)`);
-    root.style.setProperty('--gold-b',`rgba(${r},${g},${b},.3)`);
-  }
-  if(c.nomePlat){document.querySelectorAll('.plat-nome').forEach(e=>e.textContent=c.nomePlat);document.title=c.nomePlat;}
-}
-function quickDark(){DATA.config.darkMode=!DATA.config.darkMode;applyTheme();const cb=gi('cfgDarkMode');if(cb)cb.checked=DATA.config.darkMode;persist();}
-function toggleDarkLive(){const v=gi('cfgDarkMode')?.checked;document.documentElement.classList.toggle('dark',v);const db=gi('darkBtn');if(db)db.textContent=v?'☀️':'🌙';}
-function previewCor(val){const root=document.documentElement;root.style.setProperty('--gold',val);const h=val.replace('#',''),r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);root.style.setProperty('--gold-l',`rgba(${r},${g},${b},.12)`);root.style.setProperty('--gold-b',`rgba(${r},${g},${b},.3)`);syncSwatches(val);}
-function pickCor(val){const el=gi('cfgCor2');if(el)el.value=val;previewCor(val);}
-function syncSwatches(val){document.querySelectorAll('.cp-swatch').forEach(s=>{const sv=s.style.background;s.classList.toggle('sel',sv.toLowerCase()===val.toLowerCase()||hexNorm(sv)===hexNorm(val));});}
-function hexNorm(c){if(!c)return'';const d=document.createElement('div');d.style.color=c;document.body.appendChild(d);const v=getComputedStyle(d).color;document.body.removeChild(d);const m=v.match(/\d+/g);return m?'#'+m.slice(0,3).map(n=>parseInt(n).toString(16).padStart(2,'0')).join(''):c;}
-
-/* ════════════════════════════════════════════════════════════
-   CÓDIGO DA ESCOLA
-════════════════════════════════════════════════════════════ */
-function mostrarCodigo(){
-  if(!USER?.schoolId){toast('Nenhuma escola vinculada.','warn');return;}
-  gi('mCodigoVal').textContent=USER.schoolId;
-  gi('mCodigoNome').textContent=USER.schoolNome||'';
-  openM('mCodigo');
-}
-function copiarCodigo(){
-  const code=USER?.schoolId||gi('codigoDisplay')?.textContent;
-  if(!code)return;
-  navigator.clipboard.writeText(code).then(()=>toast('✅ Código copiado!','ok')).catch(()=>{
-    const r=document.createRange(),el=gi('mCodigoVal');
-    if(!el)return;r.selectNode(el);
-    window.getSelection().removeAllRanges();window.getSelection().addRange(r);
-    document.execCommand('copy');window.getSelection().removeAllRanges();
-    toast('✅ Código copiado!','ok');
-  });
-}
-
-/* ════════════════════════════════════════════════════════════
-   EXPOR TODAS AS FUNÇÕES PARA onclick DO HTML
-════════════════════════════════════════════════════════════ */
-Object.assign(window, {
-  doLogin, doRegister, doLogout, switchTab,
-  criarEscola, entrarEscola, switchSchoolTab, sairEscola,
-  navTo, openM, closeM,
-  renderTurmas, openNewTurma, editTurma, saveTurma, delTurma,
-  renderGrupos, openNewGrupo, editGrupo, saveGrupo, delGrupo,
-  renderAlunos, openNewAluno, editAluno, saveAluno, delAluno,
-  renderFreqList, setFq, salvarFreq,
-  addEst,
-  renderDesafios, openNewDesafio, editDesafio, saveDesafio, delDesafio, registrarDesafio, confirmarDesafio,
-  renderKahoot, openNewKahoot, saveKahoot, delKahoot,
-  renderRecomp, openNewRecomp, editRecomp, saveRecomp, delRecomp,
-  renderMetas, openNewMeta, editMeta, saveMeta, delMeta,
-  renderSwot, openSwot, saveSwot, delSwot,
-  renderW2H, openNewW2H, editW2H, saveW2H, delW2H, togW2H,
-  renderPorques, openNewPorque, savePorque, delPorque,
-  saveConfig, cfgTabSwitch, sairEscola,
-  quickDark, toggleDarkLive, previewCor, pickCor,
-  mostrarCodigo, copiarCodigo,
-  gerarRelatorio, exportCSV,
-});
-</script>
 
 <style>
 /* ════════════════════════════════════════════════════════════
@@ -1829,6 +749,1076 @@ textarea.finput{resize:vertical;min-height:72px}
   </div>
   <div class="m-foot"><button class="btn outline" onclick="closeM('mPorque')">Cancelar</button><button class="btn primary" onclick="savePorque()">Salvar</button></div></div>
 </div>
+
+
+<!-- Firebase SDK v9 Compat — carregado ANTES do script de boot -->
+
+<!-- Firebase SDK v9 Compat -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<!-- Main app script (after Firebase) -->
+<script>
+/* ══════════════════════════════════════════════════════════
+   🔥  CONFIGURE SEU FIREBASE AQUI
+   ─────────────────────────────────────────────────────────
+   1. console.firebase.google.com → Criar projeto gratuito
+   2. Adicionar app Web → copiar firebaseConfig abaixo
+   3. Authentication → Sign-in method → E-mail/Senha → Ativar
+   4. Firestore Database → Criar banco → Modo teste
+   5. Firestore → Regras → colar e publicar:
+
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /schools/{sid} {
+         allow read, write: if request.auth != null
+           && request.auth.uid in resource.data.members;
+         allow create: if request.auth != null;
+       }
+       match /schools/{sid}/data/{doc} {
+         allow read, write: if request.auth != null
+           && get(/databases/$(database)/documents/schools/$(sid))
+               .data.members.hasAny([request.auth.uid]);
+       }
+     }
+   }
+══════════════════════════════════════════════════════════ */
+const firebaseConfig = {
+  apiKey:            "AIzaSyAIz0aWncYjfHUU8Q7-HY3UA5uuxWGNOfg",
+  authDomain:        "edustar2-4653d.firebaseapp.com",
+  projectId:         "edustar2-4653d",
+  storageBucket:     "edustar2-4653d.firebasestorage.app",
+  messagingSenderId: "713686248695",
+  appId:             "1:713686248695:web:fbf0eea22e8f55fc6677f2"
+};
+/* ══════════════════════════════════════════════════════════ */
+
+const FB_OK = !firebaseConfig.apiKey.includes('COLE_AQUI');
+
+/* ── LocalStorage helper ─────────────────────────────────── */
+const LS = {
+  g: k => { try { return JSON.parse(localStorage.getItem('es_'+k)); } catch { return null; } },
+  s: (k,v) => localStorage.setItem('es_'+k, JSON.stringify(v)),
+  d: k => localStorage.removeItem('es_'+k)
+};
+
+/* ── Estado global ───────────────────────────────────────── */
+let USER     = null;   // { uid, nome, email, schoolId, schoolNome, isOwner }
+let DATA     = {};
+let unsubFn  = null;
+let fbAuth   = null, fbDB = null;
+let _reg     = false;  // flag: registro em andamento
+let _started = false;  // flag: app já iniciado
+let activePage = 'dashboard', activeTurmaId = null;
+let charts = {}, freqState = {};
+
+/* ════════════════════════════════════════════════════════════
+   BOOT — mostra tela inicial; Firebase inicia no final do body
+════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  show('authScreen');
+  if (!FB_OK) {
+    showBanner('⚠️ Firebase não configurado — dados salvos localmente');
+    const u = LS.g('user');
+    if (u?.schoolId) startApp(u); else if (u) showSchoolPicker(u);
+  }
+  // Firebase OK → inicializado pelo script no final do body
+});
+
+/* ════════════════════════════════════════════════════════════
+   TELA UTILS
+════════════════════════════════════════════════════════════ */
+function show(screenId) {
+  ['authScreen','schoolScreen','app'].forEach(id => {
+    const el = gi(id);
+    if (el) el.style.display = id === screenId ? (id === 'app' ? 'flex' : 'flex') : 'none';
+  });
+  if (screenId !== 'app') { _started = false; }
+}
+
+/* ════════════════════════════════════════════════════════════
+   AUTH
+════════════════════════════════════════════════════════════ */
+async function doLogin() {
+  const email = (gi('lEmail')?.value || '').trim();
+  const pw    =  gi('lPw')?.value || '';
+  clearErrs();
+  if (!email) { setErr('lEmail','E-mail obrigatório'); return; }
+  if (!pw)    { setErr('lPw','Senha obrigatória');     return; }
+  setBL('btnLogin', true);
+  try {
+    if (!FB_OK || !fbAuth) {
+      const u = LS.g('user');
+      if (u && u.email === email) {
+        if (u.schoolId) startApp(u); else showSchoolPicker(u);
+      } else toast('Usuário não encontrado.', 'err');
+    } else {
+      await fbAuth.signInWithEmailAndPassword(email, pw);
+    }
+  } catch(e) { toast(fbErr(e), 'err'); }
+  finally    { setBL('btnLogin', false); }
+}
+
+async function doRegister() {
+  const nome  = (gi('rNome')?.value || '').trim();
+  const email = (gi('rEmail')?.value || '').trim();
+  const pw    =  gi('rPw')?.value  || '';
+  const pw2   =  gi('rPw2')?.value || '';
+  clearErrs();
+  let ok = true;
+  if (!nome)                        { setErr('rNome','Nome obrigatório');    ok = false; }
+  if (!email || !email.includes('@')){ setErr('rEmail','E-mail inválido');   ok = false; }
+  if (pw.length < 6)                { setErr('rPw','Mínimo 6 caracteres');   ok = false; }
+  if (pw !== pw2)                   { setErr('rPw2','Senhas não coincidem'); ok = false; }
+  if (!ok) return;
+  setBL('btnReg', true);
+  try {
+    if (!FB_OK || !fbAuth) {
+      const u = { uid: 'demo_'+uid(), nome, email };
+      LS.s('user', u);
+      showSchoolPicker(u);
+      return;
+    }
+    _reg = true;
+    const cred = await fbAuth.createUserWithEmailAndPassword(email, pw);
+    await cred.user.updateProfile({ displayName: nome });
+    await cred.user.reload();
+    _reg = false;
+    showSchoolPicker({ uid: cred.user.uid, nome, email });
+  } catch(e) {
+    _reg = false;
+    toast(fbErr(e), 'err');
+  } finally { setBL('btnReg', false); }
+}
+
+async function doLogout() {
+  if (unsubFn) { unsubFn(); unsubFn = null; }
+  USER = null; DATA = {}; _started = false;
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch {} });
+  charts = {}; freqState = {};
+  if (!FB_OK || !fbAuth) { LS.d('user'); }
+  else { try { await fbAuth.signOut(); } catch {} }
+  show('authScreen');
+}
+
+function fbErr(e) {
+  const m = {
+    'auth/email-already-in-use': 'Este e-mail já está cadastrado.',
+    'auth/invalid-email':         'E-mail inválido.',
+    'auth/weak-password':         'Senha fraca — mínimo 6 caracteres.',
+    'auth/user-not-found':        'Usuário não encontrado.',
+    'auth/wrong-password':        'Senha incorreta.',
+    'auth/invalid-credential':    'E-mail ou senha incorretos.',
+    'auth/too-many-requests':     'Muitas tentativas. Aguarde.',
+    'auth/network-request-failed':'Sem conexão com a internet.',
+    'auth/operation-not-allowed': 'Login por e-mail não ativado no Firebase.',
+  };
+  return m[e.code] || ('Erro: ' + (e.message || e.code || 'desconhecido'));
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.auth-panel').forEach(p => p.style.display = 'none');
+  const p = gi('panel_' + tab); if (p) p.style.display = 'block';
+  clearErrs();
+}
+
+/* ════════════════════════════════════════════════════════════
+   ESCOLA — CRIAR / ENTRAR
+════════════════════════════════════════════════════════════ */
+function showSchoolPicker(tempUser) {
+  window._tmpUser = tempUser;
+  gi('spUserNome').textContent = tempUser.nome || tempUser.email;
+  show('schoolScreen');
+}
+
+async function criarEscola() {
+  const nome = (gi('spNomeEscola')?.value || '').trim();
+  if (!nome) { toast('Informe o nome da escola.', 'err'); return; }
+  setBL('btnCriarEscola', true);
+  try {
+    const u = window._tmpUser;
+    const schoolId = 'ESC-' + uid().toUpperCase();
+    const schoolData = { nome, owner: u.uid, members: [u.uid], criadoEm: Date.now() };
+    if (FB_OK && fbDB) {
+      await fbDB.collection('schools').doc(schoolId).set(schoolData);
+    } else { LS.s('school_' + schoolId, schoolData); }
+    const user = { ...u, schoolId, schoolNome: nome, isOwner: true };
+    LS.s('user_' + u.uid, user);
+    startApp(user);
+    setTimeout(() => mostrarCodigo(), 400);
+    toast(`🏫 Escola criada! Compartilhe o código com sua equipe.`, 'ok', 5000);
+  } catch(e) { toast('Erro ao criar escola: ' + e.message, 'err'); }
+  finally { setBL('btnCriarEscola', false); }
+}
+
+async function entrarEscola() {
+  const code = (gi('spCodigo')?.value || '').trim().toUpperCase();
+  if (!code) { toast('Informe o código da escola.', 'err'); return; }
+  setBL('btnEntrarEscola', true);
+  try {
+    const u = window._tmpUser;
+    let schoolData;
+    if (FB_OK && fbDB) {
+      const snap = await fbDB.collection('schools').doc(code).get();
+      if (!snap.exists) { toast('Código inválido — escola não encontrada.', 'err'); return; }
+      schoolData = snap.data();
+      if (!schoolData.members.includes(u.uid)) {
+        await fbDB.collection('schools').doc(code).update({
+          members: firebase.firestore.FieldValue.arrayUnion(u.uid)
+        });
+      }
+    } else {
+      schoolData = LS.g('school_' + code);
+      if (!schoolData) { toast('Código inválido.', 'err'); return; }
+      if (!schoolData.members.includes(u.uid)) { schoolData.members.push(u.uid); LS.s('school_' + code, schoolData); }
+    }
+    const user = { ...u, schoolId: code, schoolNome: schoolData.nome, isOwner: schoolData.owner === u.uid };
+    LS.s('user_' + u.uid, user);
+    startApp(user);
+    toast(`✅ Entrou em "${schoolData.nome}"!`, 'ok');
+  } catch(e) { toast('Erro ao entrar: ' + e.message, 'err'); }
+  finally { setBL('btnEntrarEscola', false); }
+}
+
+function switchSchoolTab(tab) {
+  document.querySelectorAll('.school-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.school-panel').forEach(p => p.style.display = 'none');
+  const p = gi('sp_' + tab); if (p) p.style.display = 'block';
+}
+
+async function sairEscola() {
+  if (!confirm('Sair da escola? Você precisará entrar com o código novamente.')) return;
+  if (USER?.uid) {
+    const saved = LS.g('user_' + USER.uid) || {};
+    delete saved.schoolId; delete saved.schoolNome; delete saved.isOwner;
+    LS.s('user_' + USER.uid, saved);
+  }
+  if (unsubFn) { unsubFn(); unsubFn = null; }
+  DATA = {}; _started = false;
+  const tempUser = { uid: USER.uid, nome: USER.nome, email: USER.email };
+  USER = null;
+  gi('app').style.display = 'none';
+  showSchoolPicker(tempUser);
+}
+
+/* ════════════════════════════════════════════════════════════
+   INICIAR APP
+════════════════════════════════════════════════════════════ */
+function startApp(user) {
+  if (_started && USER?.uid === user.uid) return;
+  _started = true;
+  USER = user;
+  gi('uNome').textContent = user.nome || user.email;
+  gi('uAv').textContent   = initials(user.nome || user.email);
+  gi('topEscola').textContent = user.schoolNome || '';
+  show('app');
+  loadData();
+}
+
+/* ════════════════════════════════════════════════════════════
+   DATA LAYER — compartilhado por escola
+════════════════════════════════════════════════════════════ */
+function dbRef() {
+  return fbDB.collection('schools').doc(USER.schoolId).collection('data').doc('main');
+}
+
+let _saveTimer = null, _saving = false;
+
+async function loadData() {
+  const localKey = 'data_' + (USER.schoolId || USER.uid);
+  if (!FB_OK || !fbDB || !USER.schoolId) {
+    DATA = LS.g(localKey) || defaultData();
+    DATA.config = { ...defaultData().config, ...DATA.config };
+    renderAll(); return;
+  }
+  syncStatus('Carregando…', 'loading');
+  try {
+    const snap = await dbRef().get();
+    DATA = snap.exists ? mergeData(snap.data()) : defaultData();
+  } catch(e) {
+    DATA = LS.g(localKey) || defaultData();
+    syncStatus('Offline', 'warn');
+  }
+  renderAll();
+  if (unsubFn) unsubFn();
+  unsubFn = dbRef().onSnapshot(
+    snap => {
+      if (_saving) return;
+      if (snap.exists) { DATA = mergeData(snap.data()); renderAll(); }
+    },
+    () => syncStatus('Offline', 'warn')
+  );
+}
+
+function mergeData(remote) {
+  const base = defaultData();
+  for (const k of Object.keys(base)) {
+    if (k === 'config') base.config = { ...base.config, ...(remote.config || {}) };
+    else if (Array.isArray(base[k])) base[k] = Array.isArray(remote[k]) ? remote[k] : [];
+  }
+  return base;
+}
+
+async function persist() {
+  LS.s('data_' + (USER.schoolId || USER.uid), DATA);
+  if (!FB_OK || !fbDB || !USER.schoolId) return;
+  _saving = true;
+  clearTimeout(_saveTimer);
+  syncStatus('Salvando…', 'saving');
+  _saveTimer = setTimeout(async () => {
+    try {
+      await dbRef().set(JSON.parse(JSON.stringify(DATA)));
+      syncStatus('Salvo ☁️', 'ok');
+      setTimeout(() => syncStatus('Online', ''), 2000);
+    } catch(e) {
+      const msg = e.code === 'permission-denied'
+        ? '❌ Sem permissão — verifique as regras do Firestore'
+        : e.code === 'unavailable' ? '📵 Offline — salvo localmente' : 'Erro: ' + e.code;
+      toast(msg, 'err', 5000);
+      syncStatus('Erro', 'warn');
+    } finally { _saving = false; }
+  }, 500);
+}
+
+function syncStatus(txt, state) {
+  const dot = gi('syncDot'), lbl = gi('syncTxt');
+  if (lbl) lbl.textContent = txt;
+  if (dot) dot.className = 'sync-dot' + (state ? ' ' + state : '');
+}
+
+function defaultData() {
+  return {
+    config: {
+      nomePlat: 'EduStar', cor2: '#C9953A', darkMode: false,
+      presenca: 10, participacao: 5, atraso: -2, falta: -5, bonus100: 10,
+      kahootFreqMin: 75, metaEstrMes: 50
+    },
+    turmas: [], grupos: [], alunos: [], recompensas: [],
+    desafios: [], kahoot: [], metas: [], swot: [], w2h: [], porques: []
+  };
+}
+
+/* ════════════════════════════════════════════════════════════
+   UTILS
+════════════════════════════════════════════════════════════ */
+function uid()       { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function gi(id)      { return document.getElementById(id); }
+function gv(id)      { return gi(id)?.value || ''; }
+function sv(id, v)   { const e = gi(id); if (e) e.value = v ?? ''; }
+function esc(s)      { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function initials(n) { return (n || '?').split(' ').slice(0,2).map(w => (w[0] || '').toUpperCase()).join(''); }
+function today()     { return new Date().toISOString().slice(0,10); }
+function fmtDate(d)  { return d ? new Date(d).toLocaleDateString('pt-BR') : '—'; }
+function setErr(id, m) { const e = gi('err_'+id); if (e) { e.textContent = m; e.style.display = 'block'; } gi(id)?.classList.add('inp-err'); }
+function clearErrs() { document.querySelectorAll('.err-msg').forEach(e => { e.textContent = ''; e.style.display = 'none'; }); document.querySelectorAll('.inp-err').forEach(e => e.classList.remove('inp-err')); }
+function setBL(id, v) { const b = gi(id); if (!b) return; b.disabled = v; b.dataset.orig = b.dataset.orig || b.textContent; b.textContent = v ? 'Aguarde…' : b.dataset.orig; }
+function emptyHTML(ic, msg, sub) { return `<div class="empty-state"><div class="empty-ic">${ic}</div><p>${msg}</p>${sub ? `<small>${sub}</small>` : ''}</div>`; }
+function fillSel(id, arr, ph, sel) { const el = gi(id); if (!el) return; el.innerHTML = `<option value="">${ph}</option>` + arr.map(x => `<option value="${x.id}"${x.id===sel?' selected':''}>${esc(x.nome)}</option>`).join(''); }
+
+let _tt;
+function toast(msg, type = '', dur = 3200) {
+  const t = gi('toast'); if (!t) return;
+  t.textContent = msg; t.className = 'toast show ' + (type || '');
+  clearTimeout(_tt); _tt = setTimeout(() => t.classList.remove('show'), dur);
+}
+
+function showBanner(msg) {
+  const b = gi('demoBanner'); if (!b) return;
+  b.textContent = msg; b.style.display = 'flex';
+}
+
+/* ════════════════════════════════════════════════════════════
+   MODAL
+════════════════════════════════════════════════════════════ */
+function openM(id)  { clearErrs(); gi(id)?.classList.add('open'); }
+function closeM(id) { gi(id)?.classList.remove('open'); }
+document.addEventListener('click', e => { if (e.target.classList.contains('modal-overlay')) closeM(e.target.id); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => closeM(m.id));
+  if (e.key === 'Enter' && gi('authScreen')?.style.display !== 'none') {
+    if (gi('panel_login')?.style.display !== 'none') doLogin();
+    else if (gi('panel_register')?.style.display !== 'none') doRegister();
+  }
+});
+
+/* ════════════════════════════════════════════════════════════
+   NAV
+════════════════════════════════════════════════════════════ */
+const PAGE_TITLES = {
+  dashboard:'Dashboard', turmas:'Turmas', grupos:'Grupos', alunos:'Alunos',
+  frequencia:'Frequência', estrelas:'⭐ Rota das Estrelas', desafios:'Desafios',
+  kahoot:'Kahoot', recompensas:'Recompensas', metas:'Metas',
+  swot:'Matriz SWOT', w2h:'5W2H', porques:'5 Porquês',
+  ranking:'Ranking', relatorios:'Relatórios', configuracoes:'Configurações'
+};
+
+function navTo(page) {
+  activePage = page;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === page));
+  document.querySelectorAll('.pg').forEach(p => p.classList.toggle('active', p.id === 'pg-' + page));
+  gi('pageTitle').textContent = PAGE_TITLES[page] || page;
+  gi('sidebar').classList.remove('open');
+  renderPage(page);
+}
+
+function renderAll() {
+  applyTheme();
+  document.querySelectorAll('.plat-nome').forEach(e => e.textContent = DATA.config?.nomePlat || 'EduStar');
+  document.title = DATA.config?.nomePlat || 'EduStar';
+  renderPage(activePage);
+}
+
+function renderPage(p) {
+  ({dashboard:renderDash, turmas:renderTurmas, grupos:renderGrupos, alunos:renderAlunos,
+    frequencia:renderFrequencia, estrelas:renderEstrelas, desafios:renderDesafios,
+    kahoot:renderKahoot, recompensas:renderRecomp, metas:renderMetas, swot:renderSwot,
+    w2h:renderW2H, porques:renderPorques, ranking:renderRanking,
+    configuracoes:renderConfig, relatorios:()=>{}
+  })[p]?.();
+}
+
+/* ════════════════════════════════════════════════════════════
+   DASHBOARD
+════════════════════════════════════════════════════════════ */
+function renderDash() {
+  const est = DATA.alunos.reduce((s,a) => s + (a.estrelas||0), 0);
+  const p   = DATA.alunos.reduce((s,a) => s + (a.presencas||0), 0);
+  const f   = DATA.alunos.reduce((s,a) => s + (a.faltas||0), 0);
+  const pct = (p+f) > 0 ? Math.round((p/(p+f))*100) : 0;
+  gi('dAl').textContent = DATA.alunos.length;
+  gi('dTu').textContent = DATA.turmas.length;
+  gi('dGr').textContent = DATA.grupos.length;
+  gi('dFq').textContent = pct + '%';
+  gi('dEs').textContent = est;
+  gi('dRe').textContent = DATA.recompensas.length;
+  // Top5
+  gi('dRank').innerHTML = [...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0)).slice(0,5)
+    .map((a,i)=>`<div class="rank-row"><span class="rk-pos">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span><span class="rk-nome">${esc(a.nome)}</span><span class="rk-pts">⭐${a.estrelas||0}</span></div>`)
+    .join('') || emptyHTML('🏆','Nenhum aluno ainda');
+  buildCharts();
+}
+
+function buildCharts() {
+  Chart.defaults.color = '#8A8680'; Chart.defaults.borderColor = '#E8E5DF';
+  const ctx1 = gi('cGr');
+  if (ctx1) {
+    if (charts.gr) charts.gr.destroy();
+    charts.gr = new Chart(ctx1, {
+      type:'bar',
+      data:{ labels: DATA.grupos.map(g=>g.nome),
+             datasets:[{ data: DATA.grupos.map(g=>DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0)),
+                         backgroundColor: DATA.grupos.map(g=>(g.cor||'#C9953A')+'99'),
+                         borderColor: DATA.grupos.map(g=>g.cor||'#C9953A'),
+                         borderWidth:2, borderRadius:6 }] },
+      options:{ responsive:true, plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}},y:{grid:{color:'#F1EEE8'}}} }
+    });
+  }
+  const ctx2 = gi('cFq');
+  if (ctx2) {
+    if (charts.fq) charts.fq.destroy();
+    const pres = DATA.alunos.reduce((s,a)=>s+(a.presencas||0),0);
+    const falt = DATA.alunos.reduce((s,a)=>s+(a.faltas||0),0);
+    charts.fq = new Chart(ctx2, {
+      type:'doughnut',
+      data:{ labels:['Presenças','Faltas'], datasets:[{ data:[pres||1,falt], backgroundColor:['#1B7B4A','#C0392B'], borderWidth:0 }] },
+      options:{ responsive:true, plugins:{legend:{position:'bottom'}}, cutout:'70%' }
+    });
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   TURMAS
+════════════════════════════════════════════════════════════ */
+function renderTurmas() {
+  gi('turmasList').innerHTML = DATA.turmas.map(t => `
+    <div class="card-item">
+      <div class="ci-icon">🏫</div>
+      <div class="ci-body"><div class="ci-title">${esc(t.nome)}</div>
+        <div class="ci-sub">${DATA.alunos.filter(a=>a.turmaId===t.id).length} aluno(s) · ${t.ano||''}</div></div>
+      <div class="ci-actions">
+        <button class="ibtn" onclick="editTurma('${t.id}')">✏️</button>
+        <button class="ibtn red" onclick="delTurma('${t.id}')">🗑</button></div>
+    </div>`).join('') || emptyHTML('🏫','Nenhuma turma','Clique em + Nova Turma');
+}
+function openNewTurma() { sv('ftId',''); sv('ftNome',''); sv('ftAno',''); sv('ftCod',''); gi('mTurmaT').textContent='Nova Turma'; openM('mTurma'); }
+function editTurma(id) { const t=DATA.turmas.find(x=>x.id===id); if(!t)return; sv('ftId',id); sv('ftNome',t.nome); sv('ftAno',t.ano||''); sv('ftCod',t.codigo||''); gi('mTurmaT').textContent='Editar Turma'; openM('mTurma'); }
+async function saveTurma() {
+  const nome=gv('ftNome').trim(); if(!nome){setErr('ftNome','Obrigatório');return;}
+  const id=gv('ftId')||uid(), obj={id,nome,ano:gv('ftAno'),codigo:gv('ftCod')};
+  const i=DATA.turmas.findIndex(x=>x.id===id); if(i>=0)DATA.turmas[i]=obj; else DATA.turmas.push(obj);
+  await persist(); closeM('mTurma'); renderTurmas(); toast('Turma salva!','ok');
+}
+async function delTurma(id) {
+  if(!confirm('Remover turma?'))return;
+  DATA.turmas=DATA.turmas.filter(t=>t.id!==id);
+  DATA.alunos.forEach(a=>{if(a.turmaId===id){a.turmaId='';a.grupoId='';}});
+  await persist(); renderTurmas(); toast('Removida.','warn');
+}
+
+/* ════════════════════════════════════════════════════════════
+   GRUPOS
+════════════════════════════════════════════════════════════ */
+function renderGrupos() {
+  gi('gruposList').innerHTML = DATA.grupos.map(g => {
+    const m = DATA.alunos.filter(a=>a.grupoId===g.id);
+    return `<div class="grupo-card" style="border-top:3px solid ${g.cor||'#C9953A'}">
+      <div class="gc-top"><div class="gc-dot" style="background:${g.cor||'#C9953A'}"></div>
+        <span class="gc-nome">${esc(g.nome)}</span>
+        <button class="ibtn" onclick="editGrupo('${g.id}')">✏️</button>
+        <button class="ibtn red" onclick="delGrupo('${g.id}')">🗑</button></div>
+      <div class="gc-pts">⭐ ${m.reduce((s,a)=>s+(a.estrelas||0),0)}</div>
+      <div class="gc-sub">${m.length} integrante(s)</div>
+      <div class="gc-members">${m.slice(0,6).map(a=>`<span class="chip">${esc(a.nome.split(' ')[0])}</span>`).join('')}</div>
+    </div>`;
+  }).join('') || emptyHTML('🏆','Nenhum grupo','Clique em + Novo Grupo');
+}
+function openNewGrupo() { sv('fgId',''); sv('fgNome',''); sv('fgCor','#C9953A'); gi('mGrupoT').textContent='Novo Grupo'; openM('mGrupo'); }
+function editGrupo(id) { const g=DATA.grupos.find(x=>x.id===id); if(!g)return; sv('fgId',id); sv('fgNome',g.nome); sv('fgCor',g.cor||'#C9953A'); gi('mGrupoT').textContent='Editar Grupo'; openM('mGrupo'); }
+async function saveGrupo() {
+  const nome=gv('fgNome').trim(); if(!nome){setErr('fgNome','Obrigatório');return;}
+  const id=gv('fgId')||uid(), obj={id,nome,cor:gv('fgCor')||'#C9953A'};
+  const i=DATA.grupos.findIndex(x=>x.id===id); if(i>=0)DATA.grupos[i]=obj; else DATA.grupos.push(obj);
+  await persist(); closeM('mGrupo'); renderGrupos(); toast('Grupo salvo!','ok');
+}
+async function delGrupo(id) {
+  if(!confirm('Remover grupo?'))return;
+  DATA.grupos=DATA.grupos.filter(g=>g.id!==id);
+  DATA.alunos.forEach(a=>{if(a.grupoId===id)a.grupoId='';});
+  await persist(); renderGrupos(); toast('Removido.','warn');
+}
+
+/* ════════════════════════════════════════════════════════════
+   ALUNOS
+════════════════════════════════════════════════════════════ */
+function renderAlunos() {
+  const q=gv('sAl').toLowerCase(), tF=gv('fAlT'), gF=gv('fAlG');
+  let list=DATA.alunos;
+  if(q)  list=list.filter(a=>a.nome.toLowerCase().includes(q)||a.id.toLowerCase().includes(q));
+  if(tF) list=list.filter(a=>a.turmaId===tF);
+  if(gF) list=list.filter(a=>a.grupoId===gF);
+  fillSel('fAlT',DATA.turmas,'Todas as turmas',tF);
+  fillSel('fAlG',DATA.grupos,'Todos os grupos',gF);
+  gi('alunosList').innerHTML = list.map(a => {
+    const t=DATA.turmas.find(x=>x.id===a.turmaId), g=DATA.grupos.find(x=>x.id===a.grupoId);
+    const tot=(a.presencas||0)+(a.faltas||0), pct=tot>0?Math.round(((a.presencas||0)/tot)*100):null;
+    return `<div class="aluno-row">
+      <div class="ar-av" ${g?`style="background:${g.cor}22;border-color:${g.cor}55;color:${g.cor}"`:''}>${initials(a.nome)}</div>
+      <div class="ar-body">
+        <div class="ar-nome">${esc(a.nome)} <span class="badge gray">${a.id}</span></div>
+        <div class="ar-meta">
+          ${t?`<span class="badge blue">${esc(t.nome)}</span>`:''}
+          ${g?`<span class="badge" style="background:${g.cor}22;color:${g.cor};border-color:${g.cor}44">${esc(g.nome)}</span>`:''}
+          ${pct!==null?`<span class="badge ${pct>=75?'green':pct>=50?'warn':'red'}">${pct}%</span>`:''}
+        </div>
+      </div>
+      <div class="ar-est">⭐ ${a.estrelas||0}</div>
+      <div class="ar-actions">
+        <button class="ibtn" onclick="editAluno('${a.id}')">✏️</button>
+        <button class="ibtn red" onclick="delAluno('${a.id}')">🗑</button></div>
+    </div>`;
+  }).join('') || emptyHTML('👥','Nenhum aluno encontrado');
+}
+function openNewAluno() { sv('faId',''); sv('faNome',''); sv('faEmail',''); sv('faTel',''); fillSel('faTurma',DATA.turmas,'Sem turma',''); fillSel('faGrupo',DATA.grupos,'Sem grupo',''); gi('mAlunoT').textContent='Novo Aluno'; openM('mAluno'); }
+function editAluno(id) { const a=DATA.alunos.find(x=>x.id===id); if(!a)return; sv('faId',id); sv('faNome',a.nome); sv('faEmail',a.email||''); sv('faTel',a.tel||''); fillSel('faTurma',DATA.turmas,'Sem turma',a.turmaId||''); fillSel('faGrupo',DATA.grupos,'Sem grupo',a.grupoId||''); gi('mAlunoT').textContent='Editar Aluno'; openM('mAluno'); }
+async function saveAluno() {
+  const nome=gv('faNome').trim(); if(!nome){setErr('faNome','Obrigatório');return;}
+  const id=gv('faId')||uid();
+  const ex=DATA.alunos.find(a=>a.id===id)||{estrelas:0,presencas:0,faltas:0,historico:[]};
+  const obj={...ex,id,nome,email:gv('faEmail'),tel:gv('faTel'),turmaId:gv('faTurma'),grupoId:gv('faGrupo')};
+  const i=DATA.alunos.findIndex(a=>a.id===id); if(i>=0)DATA.alunos[i]=obj; else DATA.alunos.push(obj);
+  await persist(); closeM('mAluno'); renderAlunos(); toast('Aluno salvo!','ok');
+}
+async function delAluno(id) {
+  if(!confirm('Remover aluno?'))return;
+  DATA.alunos=DATA.alunos.filter(a=>a.id!==id);
+  await persist(); renderAlunos(); toast('Removido.','warn');
+}
+
+/* ════════════════════════════════════════════════════════════
+   FREQUÊNCIA
+════════════════════════════════════════════════════════════ */
+function renderFrequencia() {
+  fillSel('freqTurma',DATA.turmas,'Todas as turmas',activeTurmaId||'');
+  if (!gi('freqData').value) gi('freqData').value = today();
+  renderFreqList();
+}
+function renderFreqList() {
+  const tId=gv('freqTurma'); activeTurmaId=tId;
+  let list=DATA.alunos; if(tId)list=list.filter(a=>a.turmaId===tId);
+  if(!list.length){gi('freqList').innerHTML=emptyHTML('📅','Nenhum aluno','Selecione uma turma ou crie alunos');gi('freqSummary').innerHTML='';return;}
+  list.forEach(a=>{if(!freqState[a.id])freqState[a.id]='presente';});
+  const pres=list.filter(a=>freqState[a.id]==='presente').length;
+  const aus=list.filter(a=>freqState[a.id]==='ausente').length;
+  const atr=list.filter(a=>freqState[a.id]==='atraso').length;
+  gi('freqSummary').innerHTML=`<span>✅ <b>${pres}</b> presentes</span><span>❌ <b>${aus}</b> faltas</span><span>⏰ <b>${atr}</b> atrasos</span>${list.every(a=>freqState[a.id]==='presente')?'<span class="badge green">🎯 Turma completa — bônus!</span>':''}`;
+  gi('freqList').innerHTML=list.map(a=>`
+    <div class="freq-row" id="fr_${a.id}">
+      <div class="fr-nome">${esc(a.nome)}</div>
+      <div class="freq-btns">
+        <button class="fq-btn presente ${freqState[a.id]==='presente'?'active':''}" onclick="setFq('${a.id}','presente')">✅ Presente</button>
+        <button class="fq-btn atraso   ${freqState[a.id]==='atraso'?'active':''}"   onclick="setFq('${a.id}','atraso')">⏰ Atraso</button>
+        <button class="fq-btn ausente  ${freqState[a.id]==='ausente'?'active':''}"  onclick="setFq('${a.id}','ausente')">❌ Falta</button>
+      </div>
+    </div>`).join('');
+}
+function setFq(id,val) {
+  freqState[id]=val;
+  const row=gi('fr_'+id); if(!row)return;
+  row.querySelectorAll('.fq-btn').forEach(b=>b.classList.remove('active'));
+  row.querySelector(`.fq-btn.${val}`)?.classList.add('active');
+  const list=DATA.alunos.filter(a=>!activeTurmaId||a.turmaId===activeTurmaId);
+  const pres=list.filter(a=>freqState[a.id]==='presente').length;
+  gi('freqSummary').innerHTML=`<span>✅ <b>${pres}</b> presentes</span><span>❌ <b>${list.filter(a=>freqState[a.id]==='ausente').length}</b> faltas</span><span>⏰ <b>${list.filter(a=>freqState[a.id]==='atraso').length}</b> atrasos</span>${list.every(a=>freqState[a.id]==='presente')?'<span class="badge green">🎯 Turma completa — bônus!</span>':''}`;
+}
+async function salvarFreq() {
+  const tId=gv('freqTurma'), data=gv('freqData')||today();
+  let list=DATA.alunos; if(tId)list=list.filter(a=>a.turmaId===tId);
+  if(!list.length){toast('Nenhum aluno.','warn');return;}
+  const cfg=DATA.config, todos=list.every(a=>freqState[a.id]==='presente');
+  list.forEach(a=>{
+    const s=freqState[a.id]||'presente';
+    let d=s==='presente'?(cfg.presenca||10):s==='atraso'?(cfg.atraso||-2):(cfg.falta||-5);
+    if(todos&&s==='presente')d+=(cfg.bonus100||10);
+    a.estrelas=Math.max(0,(a.estrelas||0)+d);
+    a.presencas=(a.presencas||0)+(s==='presente'?1:0);
+    a.faltas=(a.faltas||0)+(s==='ausente'?1:0);
+    if(!a.historico)a.historico=[];
+    a.historico.push({data,status:s,delta:d});
+  });
+  freqState={};
+  await persist(); renderFrequencia(); toast('✅ Frequência salva!','ok');
+}
+
+/* ════════════════════════════════════════════════════════════
+   ESTRELAS
+════════════════════════════════════════════════════════════ */
+function renderEstrelas() {
+  gi('estGrupos').innerHTML=[...DATA.grupos].sort((a,b)=>{
+    const ea=DATA.alunos.filter(x=>x.grupoId===a.id).reduce((s,x)=>s+(x.estrelas||0),0);
+    const eb=DATA.alunos.filter(x=>x.grupoId===b.id).reduce((s,x)=>s+(x.estrelas||0),0);
+    return eb-ea;
+  }).map((g,i)=>{
+    const est=DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0);
+    return `<div class="grupo-card" style="border-top:3px solid ${g.cor||'#C9953A'}">
+      <div class="gc-top"><div class="gc-dot" style="background:${g.cor||'#C9953A'}"></div><span class="gc-nome">${esc(g.nome)}</span></div>
+      <div class="gc-pts">⭐ ${est}</div><div class="gc-sub">${['🥇','🥈','🥉'][i]||'#'+(i+1)} lugar</div></div>`;
+  }).join('')||emptyHTML('🏆','Nenhum grupo ainda');
+  const sorted=[...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0));
+  const max=sorted[0]?.estrelas||1;
+  gi('estIndiv').innerHTML=sorted.map((a,i)=>{
+    const g=DATA.grupos.find(x=>x.id===a.grupoId);
+    return `<div class="aluno-row">
+      <span class="rk-pos-lg">${['🥇','🥈','🥉'][i]||`<span class="rk-n">${i+1}</span>`}</span>
+      <div class="ar-body">
+        <div class="ar-nome">${esc(a.nome)}</div>
+        <div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${Math.round(((a.estrelas||0)/max)*100)}%;background:${g?.cor||'#C9953A'}"></div></div></div>
+      </div>
+      <div class="ar-est">⭐ ${a.estrelas||0}</div>
+      <div class="ar-actions">
+        <button class="ibtn gold" onclick="addEst('${a.id}',1)">+</button>
+        <button class="ibtn" onclick="addEst('${a.id}',-1)">−</button></div>
+    </div>`;
+  }).join('')||emptyHTML('⭐','Nenhum aluno ainda');
+}
+async function addEst(id,delta) {
+  const a=DATA.alunos.find(x=>x.id===id); if(!a)return;
+  a.estrelas=Math.max(0,(a.estrelas||0)+delta);
+  if(!a.historico)a.historico=[];
+  a.historico.push({data:today(),status:'manual',delta});
+  await persist(); renderEstrelas();
+  toast(delta>0?'⭐ Estrela adicionada!':'Estrela removida.',delta>0?'ok':'warn');
+}
+
+/* ════════════════════════════════════════════════════════════
+   DESAFIOS
+════════════════════════════════════════════════════════════ */
+function renderDesafios() {
+  gi('desafiosList').innerHTML=DATA.desafios.map(d=>`
+    <div class="card-item">
+      <div class="ci-icon">🎯</div>
+      <div class="ci-body"><div class="ci-title">${esc(d.nome)}</div><div class="ci-sub">+${d.pts||0} estrelas${d.descricao?' · '+esc(d.descricao):''}</div></div>
+      <div class="ci-actions">
+        <button class="ibtn gold" onclick="registrarDesafio('${d.id}')">✅ Registrar</button>
+        <button class="ibtn" onclick="editDesafio('${d.id}')">✏️</button>
+        <button class="ibtn red" onclick="delDesafio('${d.id}')">🗑</button></div>
+    </div>`).join('')||emptyHTML('🎯','Nenhum desafio','Crie desafios para motivar os alunos');
+}
+function openNewDesafio(){sv('fdId','');sv('fdNome','');sv('fdDesc','');sv('fdPts','5');gi('mDesafioT').textContent='Novo Desafio';openM('mDesafio');}
+function editDesafio(id){const d=DATA.desafios.find(x=>x.id===id);if(!d)return;sv('fdId',id);sv('fdNome',d.nome);sv('fdDesc',d.descricao||'');sv('fdPts',d.pts||0);gi('mDesafioT').textContent='Editar Desafio';openM('mDesafio');}
+async function saveDesafio(){
+  const nome=gv('fdNome').trim();if(!nome){setErr('fdNome','Obrigatório');return;}
+  const id=gv('fdId')||uid(),obj={id,nome,descricao:gv('fdDesc'),pts:parseInt(gv('fdPts'))||5};
+  const i=DATA.desafios.findIndex(x=>x.id===id);if(i>=0)DATA.desafios[i]=obj;else DATA.desafios.push(obj);
+  await persist();closeM('mDesafio');renderDesafios();toast('Desafio salvo!','ok');
+}
+async function delDesafio(id){if(!confirm('Remover?'))return;DATA.desafios=DATA.desafios.filter(d=>d.id!==id);await persist();renderDesafios();}
+function registrarDesafio(id){const d=DATA.desafios.find(x=>x.id===id);if(!d)return;sv('frDId',id);gi('mRegDNome').textContent=d.nome;fillSel('frDAluno',DATA.alunos,'Selecione o aluno','');openM('mRegD');}
+async function confirmarDesafio(){
+  const did=gv('frDId'),aid=gv('frDAluno');
+  const d=DATA.desafios.find(x=>x.id===did),a=DATA.alunos.find(x=>x.id===aid);
+  if(!d||!a){toast('Selecione um aluno.','warn');return;}
+  a.estrelas=(a.estrelas||0)+d.pts;
+  if(!a.historico)a.historico=[];
+  a.historico.push({data:today(),status:'desafio:'+d.nome,delta:d.pts});
+  await persist();closeM('mRegD');toast(`⭐ +${d.pts} para ${a.nome}!`,'ok');
+}
+
+/* ════════════════════════════════════════════════════════════
+   KAHOOT
+════════════════════════════════════════════════════════════ */
+function renderKahoot(){
+  const min=DATA.config.kahootFreqMin||75;
+  gi('kahootList').innerHTML=[...DATA.kahoot].sort((a,b)=>new Date(b.data)-new Date(a.data)).map((k,i)=>{
+    const el=(k.freq||0)>=min;
+    const premios={1:'🍫 Barra de chocolate',2:'🍬🍬 2 bombons',3:'🍬 1 bombom'};
+    return `<tr><td>${i+1}</td><td>${esc(k.nomeAluno)}</td>
+      <td>${['🥇 1º','🥈 2º','🥉 3º'][k.pos-1]||k.pos+'º'}</td>
+      <td><span class="badge ${el?'green':'red'}">${k.freq||0}%</span></td>
+      <td>${fmtDate(k.data)}</td>
+      <td>${el?premios[k.pos]||'—':'<span style="color:var(--t3)">Não elegível</span>'}</td>
+      <td><button class="ibtn red" onclick="delKahoot('${k.id}')">🗑</button></td></tr>`;
+  }).join('');
+  if(!DATA.kahoot.length)gi('kahootList').innerHTML=`<tr><td colspan="7">${emptyHTML('🎮','Nenhum resultado registrado')}</td></tr>`;
+}
+function openNewKahoot(){fillSel('fkAluno',DATA.alunos,'Selecione o aluno','');sv('fkPos','1');sv('fkFreq','');sv('fkData',today());openM('mKahoot');}
+async function saveKahoot(){
+  const aid=gv('fkAluno'),a=DATA.alunos.find(x=>x.id===aid);
+  if(!a){toast('Selecione um aluno.','warn');return;}
+  DATA.kahoot.push({id:uid(),alunoId:aid,nomeAluno:a.nome,pos:parseInt(gv('fkPos'))||1,freq:parseInt(gv('fkFreq'))||0,data:gv('fkData')||today()});
+  await persist();closeM('mKahoot');renderKahoot();toast('Resultado registrado!','ok');
+}
+async function delKahoot(id){DATA.kahoot=DATA.kahoot.filter(k=>k.id!==id);await persist();renderKahoot();}
+
+/* ════════════════════════════════════════════════════════════
+   RECOMPENSAS
+════════════════════════════════════════════════════════════ */
+function renderRecomp(){
+  gi('recompList').innerHTML=DATA.recompensas.map(r=>`
+    <div class="card-item"><div class="ci-icon">🎁</div>
+      <div class="ci-body"><div class="ci-title">${esc(r.nome)}</div>
+        <div class="ci-sub">⭐ ${r.estrelas||0} necessárias · Estoque: ${r.estoque!=null?r.estoque:'∞'}${r.descricao?' · '+esc(r.descricao):''}</div></div>
+      <div class="ci-actions">
+        <button class="ibtn" onclick="editRecomp('${r.id}')">✏️</button>
+        <button class="ibtn red" onclick="delRecomp('${r.id}')">🗑</button></div>
+    </div>`).join('')||emptyHTML('🎁','Nenhuma recompensa','Crie recompensas para motivar');
+}
+function openNewRecomp(){sv('frId','');sv('frNome','');sv('frDesc','');sv('frEst','');sv('frEstq','');gi('mRecompT').textContent='Nova Recompensa';openM('mRecomp');}
+function editRecomp(id){const r=DATA.recompensas.find(x=>x.id===id);if(!r)return;sv('frId',id);sv('frNome',r.nome);sv('frDesc',r.descricao||'');sv('frEst',r.estrelas||'');sv('frEstq',r.estoque!=null?r.estoque:'');gi('mRecompT').textContent='Editar Recompensa';openM('mRecomp');}
+async function saveRecomp(){
+  const nome=gv('frNome').trim();if(!nome){setErr('frNome','Obrigatório');return;}
+  const id=gv('frId')||uid(),eq=gv('frEstq');
+  const obj={id,nome,descricao:gv('frDesc'),estrelas:parseInt(gv('frEst'))||0,estoque:eq===''?null:parseInt(eq)};
+  const i=DATA.recompensas.findIndex(x=>x.id===id);if(i>=0)DATA.recompensas[i]=obj;else DATA.recompensas.push(obj);
+  await persist();closeM('mRecomp');renderRecomp();toast('Recompensa salva!','ok');
+}
+async function delRecomp(id){if(!confirm('Remover?'))return;DATA.recompensas=DATA.recompensas.filter(r=>r.id!==id);await persist();renderRecomp();}
+
+/* ════════════════════════════════════════════════════════════
+   METAS
+════════════════════════════════════════════════════════════ */
+function renderMetas(){
+  gi('metasList').innerHTML=DATA.metas.length?`<table class="data-table">
+    <thead><tr><th>Meta</th><th>Responsável</th><th>Prazo</th><th>Status</th><th>Progresso</th><th></th></tr></thead>
+    <tbody>${DATA.metas.map(m=>`<tr>
+      <td><b>${esc(m.nome)}</b></td><td>${esc(m.resp||'—')}</td><td>${fmtDate(m.prazo)}</td>
+      <td><span class="badge ${m.status==='concluida'?'green':m.status==='andamento'?'warn':'gray'}">${{pendente:'Pendente',andamento:'Em andamento',concluida:'Concluída'}[m.status]||m.status}</span></td>
+      <td><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${m.prog||0}%"></div></div><span class="prog-lbl">${m.prog||0}%</span></div></td>
+      <td><button class="ibtn" onclick="editMeta('${m.id}')">✏️</button><button class="ibtn red" onclick="delMeta('${m.id}')">🗑</button></td>
+    </tr>`).join('')}</tbody></table>`:emptyHTML('🎯','Nenhuma meta');
+}
+function openNewMeta(){['fmId','fmNome','fmResp','fmPrazo','fmObs'].forEach(id=>sv(id,''));sv('fmStatus','pendente');sv('fmProg','0');gi('mMetaT').textContent='Nova Meta';openM('mMeta');}
+function editMeta(id){const m=DATA.metas.find(x=>x.id===id);if(!m)return;sv('fmId',id);sv('fmNome',m.nome);sv('fmResp',m.resp||'');sv('fmPrazo',m.prazo||'');sv('fmStatus',m.status||'pendente');sv('fmProg',m.prog||0);sv('fmObs',m.obs||'');gi('mMetaT').textContent='Editar Meta';openM('mMeta');}
+async function saveMeta(){
+  const nome=gv('fmNome').trim();if(!nome){setErr('fmNome','Obrigatório');return;}
+  const id=gv('fmId')||uid(),obj={id,nome,resp:gv('fmResp'),prazo:gv('fmPrazo'),status:gv('fmStatus'),prog:parseInt(gv('fmProg'))||0,obs:gv('fmObs')};
+  const i=DATA.metas.findIndex(x=>x.id===id);if(i>=0)DATA.metas[i]=obj;else DATA.metas.push(obj);
+  await persist();closeM('mMeta');renderMetas();toast('Meta salva!','ok');
+}
+async function delMeta(id){if(!confirm('Remover?'))return;DATA.metas=DATA.metas.filter(m=>m.id!==id);await persist();renderMetas();}
+
+/* ════════════════════════════════════════════════════════════
+   SWOT
+════════════════════════════════════════════════════════════ */
+function renderSwot(){
+  ['S','W','O','T'].forEach(q=>{
+    gi('swot_'+q).innerHTML=DATA.swot.filter(c=>c.q===q).map(c=>
+      `<div class="swot-item"><span>${esc(c.txt)}</span><button class="ibtn red sm" onclick="delSwot('${c.id}')">✕</button></div>`
+    ).join('')||'<p class="swot-empty">Clique em + para adicionar</p>';
+  });
+}
+function openSwot(q){sv('fsQ',q);sv('fsTxt','');openM('mSwot');}
+async function saveSwot(){const txt=gv('fsTxt').trim();if(!txt){setErr('fsTxt','Obrigatório');return;}DATA.swot.push({id:uid(),q:gv('fsQ'),txt});await persist();closeM('mSwot');renderSwot();toast('Adicionado!','ok');}
+async function delSwot(id){DATA.swot=DATA.swot.filter(c=>c.id!==id);await persist();renderSwot();}
+
+/* ════════════════════════════════════════════════════════════
+   5W2H
+════════════════════════════════════════════════════════════ */
+function renderW2H(){
+  const q=gv('sW2H').toLowerCase(),fst=gv('fltW2H');
+  let list=DATA.w2h;
+  if(q)list=list.filter(a=>(a.what||'').toLowerCase().includes(q)||(a.who||'').toLowerCase().includes(q));
+  if(fst)list=list.filter(a=>fst==='done'?a.done:!a.done);
+  const done=DATA.w2h.filter(x=>x.done).length,tot=DATA.w2h.length;
+  const pct=tot?Math.round((done/tot)*100):0;
+  gi('w2hPf').style.width=pct+'%'; gi('w2hPl').textContent=`${done}/${tot} (${pct}%)`;
+  gi('w2hList').innerHTML=list.map(a=>`
+    <div class="w2h-card ${a.done?'done':''}">
+      <div class="w2h-head"><span class="w2h-title">${esc(a.what||'Sem título')}</span>
+        <button class="ibtn sm" onclick="togW2H('${a.id}')">${a.done?'↩ Reabrir':'✅ Concluir'}</button>
+        <button class="ibtn sm" onclick="editW2H('${a.id}')">✏️</button>
+        <button class="ibtn sm red" onclick="delW2H('${a.id}')">🗑</button></div>
+      <div class="w2h-tags">${[['why','Por quê'],['who','Quem'],['where','Onde'],['when','Quando'],['how','Como'],['howmuch','Custo']].filter(([k])=>a[k]).map(([k,l])=>`<span class="w2h-tag"><b>${l}:</b> ${esc(a[k])}</span>`).join('')}</div>
+    </div>`).join('')||emptyHTML('📋','Nenhuma ação');
+}
+function openNewW2H(){['fwId','fwWhat','fwWhy','fwWho','fwWhere','fwWhen','fwHow','fwHM'].forEach(id=>sv(id,''));openM('mW2H');}
+function editW2H(id){const a=DATA.w2h.find(x=>x.id===id);if(!a)return;sv('fwId',id);sv('fwWhat',a.what||'');sv('fwWhy',a.why||'');sv('fwWho',a.who||'');sv('fwWhere',a.where||'');sv('fwWhen',a.when||'');sv('fwHow',a.how||'');sv('fwHM',a.howmuch||'');openM('mW2H');}
+async function saveW2H(){
+  const what=gv('fwWhat').trim();if(!what){setErr('fwWhat','O "O quê?" é obrigatório');return;}
+  const id=gv('fwId')||uid();
+  const obj={id,what,why:gv('fwWhy'),who:gv('fwWho'),where:gv('fwWhere'),when:gv('fwWhen'),how:gv('fwHow'),howmuch:gv('fwHM'),done:false};
+  const i=DATA.w2h.findIndex(x=>x.id===id);if(i>=0){DATA.w2h[i]={...DATA.w2h[i],...obj,done:DATA.w2h[i].done};}else DATA.w2h.push(obj);
+  await persist();closeM('mW2H');renderW2H();toast('Ação salva!','ok');
+}
+async function delW2H(id){DATA.w2h=DATA.w2h.filter(x=>x.id!==id);await persist();renderW2H();}
+async function togW2H(id){const a=DATA.w2h.find(x=>x.id===id);if(a){a.done=!a.done;await persist();renderW2H();}}
+
+/* ════════════════════════════════════════════════════════════
+   5 PORQUÊS
+════════════════════════════════════════════════════════════ */
+function renderPorques(){
+  gi('porquesList').innerHTML=DATA.porques.map(p=>`
+    <div class="p5-card">
+      <div class="p5-head"><div class="p5-prob">🔍 ${esc(p.prob)}</div><button class="ibtn sm red" onclick="delPorque('${p.id}')">🗑</button></div>
+      <ol class="p5-list">${[p.p1,p.p2,p.p3,p.p4,p.p5].filter(Boolean).map(x=>`<li>${esc(x)}</li>`).join('')}</ol>
+      ${p.causa?`<div class="p5-causa">✅ Causa raiz: ${esc(p.causa)}</div>`:''}
+    </div>`).join('')||emptyHTML('🔍','Nenhuma análise','Investigue causas raiz com os 5 Porquês');
+}
+function openNewPorque(){['fpId','fpProb','fp1','fp2','fp3','fp4','fp5','fpCausa'].forEach(id=>sv(id,''));openM('mPorque');}
+async function savePorque(){
+  const prob=gv('fpProb').trim();if(!prob){setErr('fpProb','Obrigatório');return;}
+  const id=gv('fpId')||uid();
+  const obj={id,prob,p1:gv('fp1'),p2:gv('fp2'),p3:gv('fp3'),p4:gv('fp4'),p5:gv('fp5'),causa:gv('fpCausa')};
+  const i=DATA.porques.findIndex(x=>x.id===id);if(i>=0)DATA.porques[i]=obj;else DATA.porques.push(obj);
+  await persist();closeM('mPorque');renderPorques();toast('Análise salva!','ok');
+}
+async function delPorque(id){if(!confirm('Remover?'))return;DATA.porques=DATA.porques.filter(x=>x.id!==id);await persist();renderPorques();}
+
+/* ════════════════════════════════════════════════════════════
+   RANKING
+════════════════════════════════════════════════════════════ */
+function renderRanking(){
+  const sorted=[...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0));
+  gi('rankIndiv').innerHTML=sorted.length?`<table class="data-table">
+    <thead><tr><th>#</th><th>Aluno</th><th>Turma</th><th>Grupo</th><th>⭐</th><th>Presença%</th></tr></thead>
+    <tbody>${sorted.map((a,i)=>{
+      const t=DATA.turmas.find(x=>x.id===a.turmaId),g=DATA.grupos.find(x=>x.id===a.grupoId);
+      const tot=(a.presencas||0)+(a.faltas||0),pct=tot>0?Math.round(((a.presencas||0)/tot)*100):null;
+      return `<tr><td><b>${['🥇','🥈','🥉'][i]||i+1}</b></td><td>${esc(a.nome)}</td>
+        <td>${t?esc(t.nome):'—'}</td><td>${g?esc(g.nome):'—'}</td>
+        <td><b style="color:var(--gold)">⭐${a.estrelas||0}</b></td>
+        <td>${pct!==null?`<span class="badge ${pct>=75?'green':pct>=50?'warn':'red'}">${pct}%</span>`:'—'}</td></tr>`;
+    }).join('')}</tbody></table>`:emptyHTML('🏆','Nenhum aluno ainda');
+  const gs=DATA.grupos.map(g=>({...g,est:DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0)})).sort((a,b)=>b.est-a.est);
+  gi('rankGrupos').innerHTML=gs.map((g,i)=>`<div class="rank-row">
+    <span class="rk-pos">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span>
+    <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${g.cor||'#ccc'};margin-right:5px"></span>
+    <span class="rk-nome">${esc(g.nome)}</span><span class="rk-pts">⭐${g.est}</span></div>`
+  ).join('')||emptyHTML('🏆','Nenhum grupo');
+}
+
+/* ════════════════════════════════════════════════════════════
+   RELATÓRIOS
+════════════════════════════════════════════════════════════ */
+function gerarRelatorio(tipo){
+  const nomes={geral:'Geral',frequencia:'Frequência',estrelas:'Estrelas',kahoot:'Kahoot',metas:'Metas'};
+  const tbl=(hs,rows)=>`<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead style="background:#f5f3ef"><tr>${hs.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  let body='';
+  if(tipo==='geral'||tipo==='estrelas'){
+    body+='<h2>Ranking de Alunos</h2>'+tbl(['#','Nome','Turma','Grupo','⭐','Presenças','Faltas'],
+      [...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0)).map((a,i)=>[i+1,a.nome,DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'—',DATA.grupos.find(g=>g.id===a.grupoId)?.nome||'—',a.estrelas||0,a.presencas||0,a.faltas||0]));
+    body+='<h2 style="margin-top:20px">Ranking de Grupos</h2>'+tbl(['#','Grupo','⭐ Total'],
+      DATA.grupos.map((g,i)=>[i+1,g.nome,DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0)]).sort((a,b)=>b[2]-a[2]));
+  }
+  if(tipo==='frequencia')body+=tbl(['Nome','Turma','Presenças','Faltas','Freq%'],DATA.alunos.map(a=>{const tot=(a.presencas||0)+(a.faltas||0);return[a.nome,DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'—',a.presencas||0,a.faltas||0,tot>0?Math.round(((a.presencas||0)/tot)*100)+'%':'—'];}));
+  if(tipo==='kahoot'){
+    const min=DATA.config.kahootFreqMin||75,premios={1:'Barra de chocolate',2:'2 bombons',3:'1 bombom'};
+    body+=tbl(['Aluno','Posição','Freq%','Data','Prêmio'],[...DATA.kahoot].sort((a,b)=>new Date(b.data)-new Date(a.data)).map(k=>[(k.nomeAluno,k.pos+'º',k.freq+'%',fmtDate(k.data),(k.freq||0)>=min?premios[k.pos]||'—':'Não elegível')]));
+  }
+  if(tipo==='metas')body+=tbl(['Meta','Responsável','Prazo','Status','Progresso'],DATA.metas.map(m=>[m.nome,m.resp||'—',fmtDate(m.prazo),m.status||'pendente',(m.prog||0)+'%']));
+  if(!body)body='<p>Sem dados.</p>';
+  const w=window.open('','_blank');
+  if(w){w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>EduStar — ${nomes[tipo]||tipo}</title></head><body style="font-family:Arial,sans-serif;margin:40px"><h1>EduStar — ${nomes[tipo]||tipo}</h1><p><small>Gerado em ${new Date().toLocaleString('pt-BR')}</small></p>${body}</body></html>`);w.document.close();setTimeout(()=>w.print(),400);}
+  toast('Relatório gerado!','ok');
+}
+function exportCSV(){
+  const rows=[['Nome','ID','Turma','Grupo','Estrelas','Presenças','Faltas','Freq%']];
+  DATA.alunos.forEach(a=>{const tot=(a.presencas||0)+(a.faltas||0);rows.push([a.nome,a.id,DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'',DATA.grupos.find(g=>g.id===a.grupoId)?.nome||'',a.estrelas||0,a.presencas||0,a.faltas||0,tot>0?Math.round(((a.presencas||0)/tot)*100)+'%':'']);});
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const u=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  Object.assign(document.createElement('a'),{href:u,download:'edustar_alunos.csv'}).click();
+  URL.revokeObjectURL(u);toast('CSV exportado!','ok');
+}
+
+/* ════════════════════════════════════════════════════════════
+   CONFIGURAÇÕES
+════════════════════════════════════════════════════════════ */
+function renderConfig(){
+  const c=DATA.config||{};
+  sv('cfgNomePlat',c.nomePlat||'EduStar'); sv('cfgCor2',c.cor2||'#C9953A');
+  const dm=gi('cfgDarkMode'); if(dm)dm.checked=!!c.darkMode;
+  syncSwatches(c.cor2||'#C9953A');
+  sv('cfgPresenca',c.presenca??10); sv('cfgPartic',c.participacao??5);
+  sv('cfgAtraso',c.atraso??-2); sv('cfgFalta',c.falta??-5);
+  sv('cfgBonus100',c.bonus100??10); sv('cfgKFreq',c.kahootFreqMin??75);
+  sv('cfgMetaEst',c.metaEstrMes??50);
+  // Aba escola
+  const en=gi('cfgEscolaNome'); if(en)en.textContent=USER?.schoolNome||'—';
+  const ec=gi('cfgEscolaCodigo'); if(ec){ec.textContent=USER?.schoolId||'—';ec.id='codigoDisplay';}
+  const bt=gi('btnCopiarCfg'); if(bt)bt.style.display=USER?.schoolId?'inline-flex':'none';
+  renderFbStatus();
+}
+async function saveConfig(){
+  DATA.config={
+    nomePlat:gv('cfgNomePlat')||'EduStar', cor2:gv('cfgCor2')||'#C9953A',
+    darkMode:gi('cfgDarkMode')?.checked||false,
+    presenca:parseInt(gv('cfgPresenca'))||10, participacao:parseInt(gv('cfgPartic'))||5,
+    atraso:parseInt(gv('cfgAtraso'))||-2, falta:parseInt(gv('cfgFalta'))||-5,
+    bonus100:parseInt(gv('cfgBonus100'))||10, kahootFreqMin:parseInt(gv('cfgKFreq'))||75,
+    metaEstrMes:parseInt(gv('cfgMetaEst'))||50
+  };
+  await persist(); applyTheme(); toast('✅ Configurações salvas!','ok');
+}
+
+function cfgTabSwitch(tab,btn){
+  document.querySelectorAll('.cfg-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.cfg-tab-panel').forEach(p=>p.style.display='none');
+  btn.classList.add('active');
+  const p=gi('cfgTab_'+tab);if(p)p.style.display='block';
+  if(tab==='status')renderFbStatus();
+  if(tab==='escola'){
+    const en=gi('cfgEscolaNome');if(en)en.textContent=USER?.schoolNome||'—';
+    const ec=gi('cfgEscolaCodigo');if(ec){ec.textContent=USER?.schoolId||'—';ec.id='codigoDisplay';}
+    const bt=gi('btnCopiarCfg');if(bt)bt.style.display=USER?.schoolId?'inline-flex':'none';
+  }
+}
+
+function renderFbStatus(){
+  const el=gi('fbStatusContent');if(!el)return;
+  const checks=[
+    [FB_OK, 'Firebase configurado', FB_OK?'Credenciais detectadas no código.':'Cole seu firebaseConfig no início do index.html'],
+    [FB_OK&&!!fbAuth&&!!fbDB, 'Conexão estabelecida', FB_OK&&fbAuth?'Auth e Firestore conectados.':'Verifique as credenciais.'],
+    [!!USER?.schoolId, 'Escola vinculada', USER?.schoolId?`Código: <b>${USER.schoolId}</b> — ${USER.schoolNome||''}` : 'Entre ou crie uma escola para compartilhar dados.'],
+    [FB_OK&&!!USER?.schoolId, 'Dados na nuvem compartilhados', FB_OK&&USER?.schoolId?'Todos os membros veem os mesmos dados em tempo real.':'Configure Firebase e vincule uma escola.']
+  ];
+  el.innerHTML=checks.map(([ok,label,detail])=>`
+    <div style="display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:18px;flex-shrink:0">${ok?'✅':'❌'}</span>
+      <div><div style="font-size:13px;font-weight:600;color:${ok?'var(--green)':'var(--red)'}">${label}</div>
+        <div style="font-size:12px;color:var(--t3);margin-top:2px">${detail}</div></div>
+    </div>`).join('');
+}
+
+/* ── Tema ── */
+function applyTheme(){
+  const c=DATA.config||{};
+  document.documentElement.classList.toggle('dark',!!c.darkMode);
+  const db=gi('darkBtn');if(db)db.textContent=c.darkMode?'☀️':'🌙';
+  if(c.cor2){
+    const root=document.documentElement;
+    root.style.setProperty('--gold',c.cor2);
+    const h=c.cor2.replace('#',''),r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+    root.style.setProperty('--gold-l',`rgba(${r},${g},${b},.12)`);
+    root.style.setProperty('--gold-b',`rgba(${r},${g},${b},.3)`);
+  }
+  if(c.nomePlat){document.querySelectorAll('.plat-nome').forEach(e=>e.textContent=c.nomePlat);document.title=c.nomePlat;}
+}
+function quickDark(){DATA.config.darkMode=!DATA.config.darkMode;applyTheme();const cb=gi('cfgDarkMode');if(cb)cb.checked=DATA.config.darkMode;persist();}
+function toggleDarkLive(){const v=gi('cfgDarkMode')?.checked;document.documentElement.classList.toggle('dark',v);const db=gi('darkBtn');if(db)db.textContent=v?'☀️':'🌙';}
+function previewCor(val){const root=document.documentElement;root.style.setProperty('--gold',val);const h=val.replace('#',''),r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);root.style.setProperty('--gold-l',`rgba(${r},${g},${b},.12)`);root.style.setProperty('--gold-b',`rgba(${r},${g},${b},.3)`);syncSwatches(val);}
+function pickCor(val){const el=gi('cfgCor2');if(el)el.value=val;previewCor(val);}
+function syncSwatches(val){document.querySelectorAll('.cp-swatch').forEach(s=>{const sv=s.style.background;s.classList.toggle('sel',sv.toLowerCase()===val.toLowerCase()||hexNorm(sv)===hexNorm(val));});}
+function hexNorm(c){if(!c)return'';const d=document.createElement('div');d.style.color=c;document.body.appendChild(d);const v=getComputedStyle(d).color;document.body.removeChild(d);const m=v.match(/\d+/g);return m?'#'+m.slice(0,3).map(n=>parseInt(n).toString(16).padStart(2,'0')).join(''):c;}
+
+/* ════════════════════════════════════════════════════════════
+   CÓDIGO DA ESCOLA
+════════════════════════════════════════════════════════════ */
+function mostrarCodigo(){
+  if(!USER?.schoolId){toast('Nenhuma escola vinculada.','warn');return;}
+  gi('mCodigoVal').textContent=USER.schoolId;
+  gi('mCodigoNome').textContent=USER.schoolNome||'';
+  openM('mCodigo');
+}
+function copiarCodigo(){
+  const code=USER?.schoolId||gi('codigoDisplay')?.textContent;
+  if(!code)return;
+  navigator.clipboard.writeText(code).then(()=>toast('✅ Código copiado!','ok')).catch(()=>{
+    const r=document.createRange(),el=gi('mCodigoVal');
+    if(!el)return;r.selectNode(el);
+    window.getSelection().removeAllRanges();window.getSelection().addRange(r);
+    document.execCommand('copy');window.getSelection().removeAllRanges();
+    toast('✅ Código copiado!','ok');
+  });
+}
+
+/* ════════════════════════════════════════════════════════════
+   EXPOR TODAS AS FUNÇÕES PARA onclick DO HTML
+════════════════════════════════════════════════════════════ */
+Object.assign(window, {
+  doLogin, doRegister, doLogout, switchTab,
+  criarEscola, entrarEscola, switchSchoolTab, sairEscola,
+  navTo, openM, closeM,
+  renderTurmas, openNewTurma, editTurma, saveTurma, delTurma,
+  renderGrupos, openNewGrupo, editGrupo, saveGrupo, delGrupo,
+  renderAlunos, openNewAluno, editAluno, saveAluno, delAluno,
+  renderFreqList, setFq, salvarFreq,
+  addEst,
+  renderDesafios, openNewDesafio, editDesafio, saveDesafio, delDesafio, registrarDesafio, confirmarDesafio,
+  renderKahoot, openNewKahoot, saveKahoot, delKahoot,
+  renderRecomp, openNewRecomp, editRecomp, saveRecomp, delRecomp,
+  renderMetas, openNewMeta, editMeta, saveMeta, delMeta,
+  renderSwot, openSwot, saveSwot, delSwot,
+  renderW2H, openNewW2H, editW2H, saveW2H, delW2H, togW2H,
+  renderPorques, openNewPorque, savePorque, delPorque,
+  saveConfig, cfgTabSwitch, sairEscola,
+  quickDark, toggleDarkLive, previewCor, pickCor,
+  mostrarCodigo, copiarCodigo,
+  gerarRelatorio, exportCSV,
+});
+</script>
+
+<script>
+(function() {
+  if (!FB_OK) return;
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    fbAuth = firebase.auth();
+    fbDB   = firebase.firestore();
+    fbAuth.onAuthStateChanged(async fbUser => {
+      if (_reg) return;
+      if (fbUser) {
+        await fbUser.reload().catch(() => {});
+        const nome  = fbAuth.currentUser?.displayName || fbUser.displayName || fbUser.email.split('@')[0];
+        const saved = LS.g('user_' + fbUser.uid);
+        const user  = { uid: fbUser.uid, nome, email: fbUser.email, ...(saved || {}) };
+        if (user.schoolId) startApp(user);
+        else showSchoolPicker(user);
+      } else {
+        show('authScreen');
+      }
+    });
+  } catch(e) {
+    console.error('Firebase boot error:', e);
+    showBanner('⚠️ Erro ao conectar Firebase — modo offline');
+    const u = LS.g('user');
+    if (u) startApp(u); else show('authScreen');
+  }
+})();
+</script>
 
 <div id="toast" class="toast"></div>
 </body>
