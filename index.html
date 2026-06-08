@@ -245,9 +245,36 @@ textarea.finput{resize:vertical;min-height:72px}
   .charts-row,.two-col,.swot-grid,.form-row{grid-template-columns:1fr}
 }
 @media(max-width:480px){.stats-grid{grid-template-columns:1fr 1fr}.groups-grid{grid-template-columns:1fr}}
+
+/* Aluno: esconde apenas Configurações (resto é controlado por página via JS) */
+body.role-aluno .nav-item[data-page="configuracoes"]{display:none}
 </style>
 </head>
 <body>
+
+<!-- TIPO DE USUÁRIO (primeira tela) -->
+<div id="tipoScreen" style="display:flex;min-height:100vh;align-items:center;justify-content:center;background:var(--bg);padding:20px">
+  <div class="auth-wrap">
+    <div class="auth-logo">
+      <span class="auth-logo-icon">⭐</span>
+      <h1 class="plat-nome">EduStar</h1>
+      <p>Gestão escolar gamificada</p>
+    </div>
+    <div class="auth-card">
+      <p style="font-size:14px;font-weight:600;text-align:center;margin-bottom:18px">Como você vai usar o EduStar?</p>
+      <button class="btn full" style="background:var(--green-l);color:var(--green);border:1.5px solid #a7f3d0;padding:16px;margin-bottom:10px;font-size:14px;flex-direction:column;gap:4px" onclick="escolherTipo('professor')">
+        <span style="font-size:24px">👨‍🏫</span>
+        <span style="font-weight:600">Professor / Moderador</span>
+        <span style="font-size:11px;font-weight:400;opacity:.8">Crio e gerencio a escola — acesso total</span>
+      </button>
+      <button class="btn full" style="background:var(--blue-l);color:var(--blue);border:1.5px solid #c2cffa;padding:16px;font-size:14px;flex-direction:column;gap:4px" onclick="escolherTipo('aluno')">
+        <span style="font-size:24px">🎓</span>
+        <span style="font-weight:600">Aluno</span>
+        <span style="font-size:11px;font-weight:400;opacity:.8">Entro com o código de aluno da turma</span>
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- ESCOLA PICKER -->
 <div id="schoolScreen" style="display:none">
@@ -255,25 +282,36 @@ textarea.finput{resize:vertical;min-height:72px}
     <div class="auth-logo">
       <span class="auth-logo-icon">🏫</span>
       <h1 class="plat-nome">EduStar</h1>
-      <p>Olá, <strong id="spUserNome"></strong>! Configure sua escola.</p>
+      <p>Olá, <strong id="spUserNome"></strong>!</p>
     </div>
-    <div class="auth-card">
+
+    <!-- Painel do PROFESSOR -->
+    <div class="auth-card" id="profCard">
       <div class="auth-tabs">
         <button class="school-tab auth-tab active" data-tab="criar" onclick="switchSchoolTab('criar')">Criar Escola</button>
-        <button class="school-tab auth-tab" data-tab="entrar" onclick="switchSchoolTab('entrar')">Entrar em Escola</button>
+        <button class="school-tab auth-tab" data-tab="entrar" onclick="switchSchoolTab('entrar')">Entrar como Moderador</button>
       </div>
       <div id="sp_criar" class="school-panel">
-        <p style="font-size:13px;color:var(--t3);margin-bottom:14px;line-height:1.6">Crie uma escola e compartilhe o código com sua equipe para acessar os mesmos dados.</p>
+        <p style="font-size:13px;color:var(--t3);margin-bottom:14px;line-height:1.6">Crie sua escola. Você receberá <b>2 códigos</b>: um para moderadores e um para alunos.</p>
         <div class="fgroup"><label class="flabel">Nome da escola</label><input id="spNomeEscola" class="finput" placeholder="Ex: E.E. Prof. João Silva"></div>
+        <div class="fgroup"><label class="flabel">Código para os alunos</label><input id="spCodigoAluno" class="finput" placeholder="Ex: TURMA2025" style="text-transform:uppercase;letter-spacing:1px;font-family:monospace"><small style="display:block;font-size:11px;color:var(--t3);margin-top:4px">Você escolhe — é esse código que os alunos vão usar para entrar.</small></div>
         <button id="btnCriarEscola" class="btn primary full" onclick="criarEscola()">🏫 Criar escola</button>
       </div>
       <div id="sp_entrar" class="school-panel" style="display:none">
-        <p style="font-size:13px;color:var(--t3);margin-bottom:14px;line-height:1.6">Cole o código que recebeu para entrar e compartilhar os dados em tempo real.</p>
-        <div class="fgroup"><label class="flabel">Código da escola</label><input id="spCodigo" class="finput" placeholder="ESC-XXXXXX" style="text-transform:uppercase;letter-spacing:2px;font-family:monospace"></div>
-        <button id="btnEntrarEscola" class="btn primary full" onclick="entrarEscola()">🔑 Entrar na escola</button>
+        <p style="font-size:13px;color:var(--t3);margin-bottom:14px;line-height:1.6">Cole o código de moderador (ESC-XXXXXX) que recebeu de quem criou a escola.</p>
+        <div class="fgroup"><label class="flabel">Código de moderador</label><input id="spCodigo" class="finput" placeholder="ESC-XXXXXX" style="text-transform:uppercase;letter-spacing:2px;font-family:monospace"></div>
+        <button id="btnEntrarEscola" class="btn primary full" onclick="entrarEscola()">🔑 Entrar como moderador</button>
       </div>
     </div>
-    <button class="btn outline sm" style="width:100%;margin-top:10px" onclick="doLogout()">← Usar outra conta</button>
+
+    <!-- Painel do ALUNO -->
+    <div class="auth-card" id="alunoCard" style="display:none">
+      <p style="font-size:13px;color:var(--t3);margin-bottom:14px;line-height:1.6">Digite o <b>código de aluno</b> que seu professor passou para você.</p>
+      <div class="fgroup"><label class="flabel">Código de aluno</label><input id="spCodigoAlunoEntrar" class="finput" placeholder="Ex: TURMA2025" style="text-transform:uppercase;letter-spacing:1px;font-family:monospace"></div>
+      <button id="btnEntrarAluno" class="btn primary full" onclick="entrarComoAluno()">🎓 Entrar na turma</button>
+    </div>
+
+    <button class="btn outline sm" style="width:100%;margin-top:10px" onclick="voltarTipo()">← Voltar</button>
   </div>
 </div>
 
@@ -317,6 +355,7 @@ textarea.finput{resize:vertical;min-height:72px}
       <span class="sync-dot" id="syncDot"></span>
       <span id="syncTxt" style="font-size:12px;color:var(--t3)">Online</span>
       <span id="topEscola" class="escola-badge" onclick="mostrarCodigo()" title="Ver código"></span>
+      <span id="roleBadge" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;border:1px solid;flex-shrink:0"></span>
       <button id="darkBtn" class="btn outline sm" onclick="quickDark()" style="padding:5px 9px;font-size:16px">🌙</button>
       <div class="user-av" id="uAv">?</div>
       <span id="uNome" style="font-size:13px;color:var(--t2)"></span>
@@ -345,6 +384,7 @@ textarea.finput{resize:vertical;min-height:72px}
         <button class="nav-item" data-page="porques" onclick="navTo('porques')"><span class="nav-icon">🔍</span> 5 Porquês</button>
         <div class="sb-section">Sistema</div>
         <button class="nav-item" data-page="ranking" onclick="navTo('ranking')"><span class="nav-icon">🥇</span> Ranking</button>
+        <button class="nav-item" id="navSugestoes" data-page="sugestoes" onclick="navTo('sugestoes')"><span class="nav-icon">💡</span> Sugestões</button>
         <button class="nav-item" data-page="relatorios" onclick="navTo('relatorios')"><span class="nav-icon">📄</span> Relatórios</button>
         <div class="sb-footer">
           <button class="nav-item" data-page="configuracoes" onclick="navTo('configuracoes')"><span class="nav-icon">⚙️</span> Configurações</button>
@@ -488,6 +528,18 @@ textarea.finput{resize:vertical;min-height:72px}
         <div class="rank-box" style="max-width:400px"><div id="rankGrupos"></div></div>
       </div>
 
+      <!-- SUGESTÕES -->
+      <div class="pg pb" id="pg-sugestoes">
+        <div id="sugAlunoBox" style="display:none;margin-bottom:16px">
+          <div class="card-item" style="flex-direction:column;align-items:stretch;gap:10px">
+            <div style="font-weight:600;font-size:14px">💡 Enviar uma sugestão</div>
+            <textarea id="sugTexto" class="finput" rows="3" placeholder="Escreva sua sugestão, ideia ou pedido para os professores…"></textarea>
+            <button class="btn gold" style="align-self:flex-end" onclick="enviarSugestao()">Enviar sugestão</button>
+          </div>
+        </div>
+        <div id="sugList"></div>
+      </div>
+
       <!-- RELATÓRIOS -->
       <div class="pg pb" id="pg-relatorios">
         <div class="relat-grid">
@@ -556,10 +608,17 @@ textarea.finput{resize:vertical;min-height:72px}
             <h4>🏫 Sua Escola</h4>
             <div class="cfg-row"><div class="cfg-label">Nome</div><span id="cfgEscolaNome" style="font-size:13px;font-weight:600">—</span></div>
             <div class="cfg-row">
-              <div class="cfg-label">Código de acesso<small>Compartilhe com sua equipe</small></div>
+              <div class="cfg-label">👨‍🏫 Código de moderador<small>Para outros professores entrarem</small></div>
               <div style="display:flex;align-items:center;gap:8px">
-                <span id="cfgEscolaCodigo" style="font-family:monospace;font-size:15px;font-weight:700;color:var(--gold);letter-spacing:2px">—</span>
-                <button id="btnCopiarCfg" class="btn outline sm" onclick="copiarCodigo()" style="display:none">📋 Copiar</button>
+                <span id="cfgEscolaCodigo" style="font-family:monospace;font-size:15px;font-weight:700;color:var(--green);letter-spacing:2px">—</span>
+                <button class="btn outline sm" onclick="copiarCodigoMod()">📋</button>
+              </div>
+            </div>
+            <div class="cfg-row">
+              <div class="cfg-label">🎓 Código de aluno<small>Para os alunos entrarem</small></div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span id="cfgCodigoAluno" style="font-family:monospace;font-size:15px;font-weight:700;color:var(--blue);letter-spacing:2px">—</span>
+                <button class="btn outline sm" onclick="copiarCodigoAluno()">📋</button>
               </div>
             </div>
             <div class="cfg-row"><div class="cfg-label">Sair da escola</div><button class="btn danger sm" onclick="sairEscola()">Sair da escola</button></div>
@@ -589,14 +648,23 @@ textarea.finput{resize:vertical;min-height:72px}
 
 <!-- MODAIS -->
 <div class="modal-overlay" id="mCodigo">
-  <div class="modal"><div class="m-head"><h3>🏫 Código da Escola</h3><button class="m-close" onclick="closeM('mCodigo')">✕</button></div>
-  <div class="m-body" style="text-align:center;padding:24px 22px">
-    <p style="font-size:13px;color:var(--t3);margin-bottom:18px">Compartilhe este código com sua equipe.<br>Quem entrar com ele acessa os mesmos dados.</p>
-    <div style="background:var(--gold-l);border:2px solid var(--gold-b);border-radius:var(--rl);padding:20px;margin-bottom:18px">
-      <div id="mCodigoVal" style="font-family:monospace;font-size:28px;font-weight:700;color:var(--gold);letter-spacing:4px"></div>
-      <div id="mCodigoNome" style="font-size:13px;color:var(--t3);margin-top:6px"></div>
+  <div class="modal"><div class="m-head"><h3>🏫 Códigos da Escola</h3><button class="m-close" onclick="closeM('mCodigo')">✕</button></div>
+  <div class="m-body" style="text-align:center;padding:20px 22px">
+    <div id="mCodigoNome" style="font-size:14px;font-weight:600;margin-bottom:16px"></div>
+
+    <div style="font-size:12px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;text-align:left">👨‍🏫 Código de Moderador</div>
+    <div style="background:var(--green-l);border:2px solid #a7f3d0;border-radius:var(--rl);padding:16px;margin-bottom:8px">
+      <div id="mCodigoVal" style="font-family:monospace;font-size:22px;font-weight:700;color:var(--green);letter-spacing:3px"></div>
     </div>
-    <button class="btn gold full" onclick="copiarCodigo()">📋 Copiar código</button>
+    <button class="btn outline sm full" style="margin-bottom:18px" onclick="copiarCodigoMod()">📋 Copiar código de moderador</button>
+
+    <div style="font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;text-align:left">🎓 Código de Aluno</div>
+    <div style="background:var(--blue-l);border:2px solid #c2cffa;border-radius:var(--rl);padding:16px;margin-bottom:8px">
+      <div id="mCodigoAlunoVal" style="font-family:monospace;font-size:22px;font-weight:700;color:var(--blue);letter-spacing:3px"></div>
+    </div>
+    <button class="btn outline sm full" onclick="copiarCodigoAluno()">📋 Copiar código de aluno</button>
+
+    <p style="font-size:11px;color:var(--t3);margin-top:16px;line-height:1.6">Moderadores editam tudo. Alunos só veem as partes sensíveis e editam SWOT, 5W2H, 5 Porquês e Sugestões.</p>
   </div></div>
 </div>
 <div class="modal-overlay" id="mTurma"><div class="modal"><div class="m-head"><h3 id="mTurmaT">Nova Turma</h3><button class="m-close" onclick="closeM('mTurma')">✕</button></div><div class="m-body"><input type="hidden" id="ftId"><div class="fgroup"><label class="flabel">Nome</label><input id="ftNome" class="finput" placeholder="Ex: 3º Ano A"><div class="err-msg" id="err_ftNome"></div></div><div class="form-row"><div class="fgroup"><label class="flabel">Ano Letivo</label><input id="ftAno" class="finput" placeholder="2025"></div><div class="fgroup"><label class="flabel">Código</label><input id="ftCod" class="finput" placeholder="A01"></div></div></div><div class="m-foot"><button class="btn outline" onclick="closeM('mTurma')">Cancelar</button><button class="btn primary" onclick="saveTurma()">Salvar</button></div></div></div>
@@ -641,15 +709,16 @@ const LS = {
 let USER = null, DATA = {}, activePage = 'dashboard', activeTurmaId = null;
 let charts = {}, freqState = {}, _started = false;
 let _saveTimer = null, _saving = false;
+let _intendedRole = 'professor'; // escolhido na primeira tela
 
 /* ════ BOOT ════ */
 document.addEventListener('DOMContentLoaded', async () => {
-  showScreen('authScreen');
+  showScreen('tipoScreen');
 
   if (!SB_OK) {
     showBanner('⚠️ Supabase não configurado — dados salvos localmente');
     const u = LS.g('user');
-    if (u?.schoolId) startApp(u); else if (u) showSchoolPicker(u);
+    if (u?.schoolId) { _intendedRole = u.role==='aluno'?'aluno':'professor'; startApp(u); }
     return;
   }
 
@@ -660,7 +729,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (session?.user) {
     const saved = LS.g('user_' + session.user.id) || {};
     const user = { uid: session.user.id, nome: session.user.user_metadata?.nome || session.user.email.split('@')[0], email: session.user.email, ...saved };
-    if (user.schoolId) startApp(user); else showSchoolPicker(user);
+    if (user.schoolId) { _intendedRole = user.role==='aluno'?'aluno':'professor'; startApp(user); }
+    else { _intendedRole = saved.role==='aluno'?'aluno':'professor'; showSchoolPicker(user); }
   }
 
   // Listener de auth
@@ -670,9 +740,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       const user = { uid: session.user.id, nome: session.user.user_metadata?.nome || session.user.email.split('@')[0], email: session.user.email, ...saved };
       if (user.schoolId) startApp(user); else showSchoolPicker(user);
     }
-    if (event === 'SIGNED_OUT') showScreen('authScreen');
+    if (event === 'SIGNED_OUT') showScreen('tipoScreen');
   });
 });
+
+/* ════ TIPO DE USUÁRIO ════ */
+function escolherTipo(tipo) {
+  _intendedRole = tipo;
+  showScreen('authScreen');
+}
+function voltarTipo() {
+  showScreen('tipoScreen');
+}
 
 /* ════ AUTH ════ */
 async function doLogin() {
@@ -742,35 +821,42 @@ function sbErr(e) {
 function showSchoolPicker(u) {
   window._tmpUser = u;
   gi('spUserNome').textContent = u.nome || u.email;
+  // Mostra painel conforme o tipo escolhido na primeira tela
+  const aluno = _intendedRole === 'aluno';
+  gi('profCard').style.display  = aluno ? 'none' : 'block';
+  gi('alunoCard').style.display = aluno ? 'block' : 'none';
   showScreen('schoolScreen');
 }
 
 async function criarEscola() {
   const nome = (gi('spNomeEscola')?.value||'').trim();
+  const codAluno = (gi('spCodigoAluno')?.value||'').trim().toUpperCase();
   if (!nome) { toast('Informe o nome da escola.','err'); return; }
+  if (!codAluno) { toast('Defina um código para os alunos.','err'); return; }
   setBL('btnCriarEscola', true);
   try {
     const u = window._tmpUser;
     const schoolId = 'ESC-' + uid().toUpperCase();
-    const schoolData = { id: schoolId, nome, owner: u.uid, members: [u.uid] };
+    const schoolData = { id: schoolId, nome, owner: u.uid, members: [u.uid], codigo_aluno: codAluno };
     if (SB_OK && sb) {
       const { error } = await sb.from('schools').insert(schoolData);
       if (error) throw error;
     } else {
       LS.s('school_'+schoolId, schoolData);
+      LS.s('alunocode_'+codAluno, schoolId); // índice p/ busca offline
     }
-    const user = { ...u, schoolId, schoolNome: nome, isOwner: true };
+    const user = { ...u, schoolId, schoolNome: nome, isOwner: true, role: 'professor', codigoAluno: codAluno };
     LS.s('user_'+u.uid, user);
     startApp(user);
     setTimeout(() => mostrarCodigo(), 400);
-    toast('🏫 Escola criada! Compartilhe o código.','ok',5000);
+    toast('🏫 Escola criada! Veja os 2 códigos.','ok',5000);
   } catch(e) { toast('Erro ao criar: '+e.message,'err'); }
   finally { setBL('btnCriarEscola', false); }
 }
 
 async function entrarEscola() {
   const code = (gi('spCodigo')?.value||'').trim().toUpperCase();
-  if (!code) { toast('Informe o código.','err'); return; }
+  if (!code) { toast('Informe o código de moderador.','err'); return; }
   setBL('btnEntrarEscola', true);
   try {
     const u = window._tmpUser;
@@ -788,17 +874,49 @@ async function entrarEscola() {
       if (!schoolData) { toast('Código inválido.','err'); return; }
       if (!schoolData.members.includes(u.uid)) { schoolData.members.push(u.uid); LS.s('school_'+code, schoolData); }
     }
-    const user = { ...u, schoolId: code, schoolNome: schoolData.nome, isOwner: schoolData.owner===u.uid };
+    const user = { ...u, schoolId: code, schoolNome: schoolData.nome, isOwner: schoolData.owner===u.uid, role: 'professor', codigoAluno: schoolData.codigo_aluno };
     LS.s('user_'+u.uid, user);
     startApp(user);
-    toast(`✅ Entrou em "${schoolData.nome}"!`,'ok');
+    toast(`✅ Entrou como Moderador em "${schoolData.nome}"!`,'ok');
   } catch(e) { toast('Erro ao entrar: '+e.message,'err'); }
   finally { setBL('btnEntrarEscola', false); }
 }
 
+async function entrarComoAluno() {
+  const codAluno = (gi('spCodigoAlunoEntrar')?.value||'').trim().toUpperCase();
+  if (!codAluno) { toast('Digite o código de aluno.','err'); return; }
+  setBL('btnEntrarAluno', true);
+  try {
+    const u = window._tmpUser;
+    let schoolData;
+    if (SB_OK && sb) {
+      // Busca a escola pelo código de aluno
+      const { data, error } = await sb.from('schools').select('*').eq('codigo_aluno', codAluno).single();
+      if (error || !data) { toast('Código de aluno inválido.','err'); return; }
+      schoolData = data;
+      if (!schoolData.members.includes(u.uid)) {
+        const newMembers = [...schoolData.members, u.uid];
+        await sb.from('schools').update({ members: newMembers }).eq('id', schoolData.id);
+      }
+    } else {
+      const sid = LS.g('alunocode_'+codAluno);
+      schoolData = sid ? LS.g('school_'+sid) : null;
+      if (!schoolData) { toast('Código de aluno inválido.','err'); return; }
+      if (!schoolData.members.includes(u.uid)) { schoolData.members.push(u.uid); LS.s('school_'+schoolData.id, schoolData); }
+    }
+    const user = { ...u, schoolId: schoolData.id, schoolNome: schoolData.nome, isOwner: false, role: 'aluno' };
+    LS.s('user_'+u.uid, user);
+    startApp(user);
+    toast(`🎓 Bem-vindo à turma "${schoolData.nome}"!`,'ok');
+  } catch(e) { toast('Erro ao entrar: '+e.message,'err'); }
+  finally { setBL('btnEntrarAluno', false); }
+}
+
+function isProf() { return USER?.role !== 'aluno'; }
+
 async function sairEscola() {
   if (!confirm('Sair da escola?')) return;
-  if (USER?.uid) { const s = LS.g('user_'+USER.uid)||{}; delete s.schoolId; delete s.schoolNome; LS.s('user_'+USER.uid, s); }
+  if (USER?.uid) { const s = LS.g('user_'+USER.uid)||{}; delete s.schoolId; delete s.schoolNome; delete s.role; LS.s('user_'+USER.uid, s); }
   DATA = {}; _started = false;
   const tmp = { uid:USER.uid, nome:USER.nome, email:USER.email };
   USER = null;
@@ -814,7 +932,7 @@ function switchSchoolTab(tab) {
 
 /* ════ APP ════ */
 function showScreen(id) {
-  ['authScreen','schoolScreen','app'].forEach(s => {
+  ['tipoScreen','authScreen','schoolScreen','app'].forEach(s => {
     const el = gi(s);
     if (el) el.style.display = s===id ? 'flex' : 'none';
   });
@@ -827,8 +945,68 @@ function startApp(user) {
   gi('uNome').textContent = user.nome||user.email;
   gi('uAv').textContent   = initials(user.nome||user.email);
   gi('topEscola').textContent = user.schoolNome||'';
+  // Alunos não veem/copiam códigos pela barra do topo
+  gi('topEscola').style.cursor = isProf() ? 'pointer' : 'default';
+  gi('topEscola').title = isProf() ? 'Ver códigos' : '';
+  applyRoleUI();
   showScreen('app');
   loadData();
+}
+
+/* Páginas que ALUNOS podem editar (ferramentas colaborativas) */
+const ALUNO_EDITA = ['swot','w2h','porques','sugestoes'];
+
+/* Aplica restrições visuais conforme o papel */
+function applyRoleUI() {
+  const aluno = !isProf();
+  let roleBadge = gi('roleBadge');
+  if (roleBadge) {
+    roleBadge.textContent = aluno ? '🎓 Aluno' : '👨‍🏫 Professor';
+    roleBadge.style.background = aluno ? 'var(--blue-l)' : 'var(--green-l)';
+    roleBadge.style.color = aluno ? 'var(--blue)' : 'var(--green)';
+    roleBadge.style.borderColor = aluno ? '#c2cffa' : '#a7f3d0';
+  }
+  document.body.classList.toggle('role-aluno', aluno);
+  // Caixa de enviar sugestão só para alunos
+  const sugBox = gi('sugAlunoBox');
+  if (sugBox) sugBox.style.display = aluno ? 'block' : 'none';
+  // Aplica permissão da página atual
+  applyPagePermission();
+}
+
+/* Mostra/esconde botões de edição conforme a página e o papel */
+function applyPagePermission() {
+  const aluno = !isProf();
+  const pode = !aluno || ALUNO_EDITA.includes(activePage);
+  const pg = gi('pg-'+activePage);
+  if (!pg) return;
+  // Botões de ação (criar/salvar/editar) dentro da página atual
+  pg.querySelectorAll('.btn.primary, .btn.gold, .ci-actions, .ar-actions, .freq-btns').forEach(el => {
+    if (el.getAttribute('onclick')?.includes('enviarSugestao')) return;
+    el.style.display = pode ? '' : 'none';
+  });
+  // Botões de + (swot, etc.) e ibtn de edição
+  if (!pode) {
+    pg.querySelectorAll('.ibtn').forEach(b => {
+      if (b.getAttribute('onclick')?.includes('togSugestao') || b.getAttribute('onclick')?.includes('delSugestao')) return;
+      b.style.display = 'none';
+    });
+    // Aviso de "somente leitura"
+    showReadonlyHint(pg);
+  } else {
+    pg.querySelectorAll('.ibtn').forEach(b => b.style.display = '');
+    const hint = pg.querySelector('.readonly-hint');
+    if (hint) hint.remove();
+  }
+}
+
+function showReadonlyHint(pg) {
+  if (pg.querySelector('.readonly-hint')) return;
+  const div = document.createElement('div');
+  div.className = 'readonly-hint';
+  div.style.cssText = 'background:var(--blue-l);border:1px solid #c2cffa;color:var(--blue);border-radius:var(--rl);padding:10px 14px;font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px';
+  div.innerHTML = '👁️ Modo somente leitura — você pode visualizar, mas só os professores editam esta seção.';
+  pg.insertBefore(div, pg.firstChild);
 }
 
 /* ════ DATA ════ */
@@ -886,7 +1064,7 @@ function mergeData(r) {
 function defaultData() {
   return {
     config:{ nomePlat:'EduStar', cor2:'#C9953A', darkMode:false, presenca:10, participacao:5, atraso:-2, falta:-5, bonus100:10, kahootFreqMin:75, metaEstrMes:50 },
-    turmas:[], grupos:[], alunos:[], recompensas:[], desafios:[], kahoot:[], metas:[], swot:[], w2h:[], porques:[]
+    turmas:[], grupos:[], alunos:[], recompensas:[], desafios:[], kahoot:[], metas:[], swot:[], w2h:[], porques:[], sugestoes:[]
   };
 }
 
@@ -927,7 +1105,7 @@ document.addEventListener('keydown',e=>{
 });
 
 /* ════ NAV ════ */
-const PAGE_TITLES={dashboard:'Dashboard',turmas:'Turmas',grupos:'Grupos',alunos:'Alunos',frequencia:'Frequência',estrelas:'⭐ Rota das Estrelas',desafios:'Desafios',kahoot:'Kahoot',recompensas:'Recompensas',metas:'Metas',swot:'Matriz SWOT',w2h:'5W2H',porques:'5 Porquês',ranking:'Ranking',relatorios:'Relatórios',configuracoes:'Configurações'};
+const PAGE_TITLES={dashboard:'Dashboard',turmas:'Turmas',grupos:'Grupos',alunos:'Alunos',frequencia:'Frequência',estrelas:'⭐ Rota das Estrelas',desafios:'Desafios',kahoot:'Kahoot',recompensas:'Recompensas',metas:'Metas',swot:'Matriz SWOT',w2h:'5W2H',porques:'5 Porquês',ranking:'Ranking',sugestoes:'💡 Sugestões',relatorios:'Relatórios',configuracoes:'Configurações'};
 
 function navTo(page){
   activePage=page;
@@ -936,12 +1114,13 @@ function navTo(page){
   gi('pageTitle').textContent=PAGE_TITLES[page]||page;
   gi('sidebar').classList.remove('open');
   renderPage(page);
+  applyPagePermission();
 }
 
 function switchTab(tab){ document.querySelectorAll('.auth-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab)); document.querySelectorAll('.auth-panel').forEach(p=>p.style.display='none'); const p=gi('panel_'+tab); if(p)p.style.display='block'; clearErrs(); }
 
 function renderAll(){ applyTheme(); document.querySelectorAll('.plat-nome').forEach(e=>e.textContent=DATA.config?.nomePlat||'EduStar'); document.title=DATA.config?.nomePlat||'EduStar'; renderPage(activePage); }
-function renderPage(p){ ({dashboard:renderDash,turmas:renderTurmas,grupos:renderGrupos,alunos:renderAlunos,frequencia:renderFrequencia,estrelas:renderEstrelas,desafios:renderDesafios,kahoot:renderKahoot,recompensas:renderRecomp,metas:renderMetas,swot:renderSwot,w2h:renderW2H,porques:renderPorques,ranking:renderRanking,configuracoes:renderConfig,relatorios:()=>{}})[p]?.(); }
+function renderPage(p){ ({dashboard:renderDash,turmas:renderTurmas,grupos:renderGrupos,alunos:renderAlunos,frequencia:renderFrequencia,estrelas:renderEstrelas,desafios:renderDesafios,kahoot:renderKahoot,recompensas:renderRecomp,metas:renderMetas,swot:renderSwot,w2h:renderW2H,porques:renderPorques,ranking:renderRanking,sugestoes:renderSugestoes,configuracoes:renderConfig,relatorios:()=>{}})[p]?.(); }
 
 /* ════ DASHBOARD ════ */
 function renderDash(){
@@ -1051,10 +1230,45 @@ function gerarRelatorio(tipo){const tbl=(hs,rows)=>`<table border="1" cellpaddin
 function exportCSV(){const rows=[['Nome','ID','Turma','Grupo','Estrelas','Presenças','Faltas','Freq%']];DATA.alunos.forEach(a=>{const tot=(a.presencas||0)+(a.faltas||0);rows.push([a.nome,a.id,DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'',DATA.grupos.find(g=>g.id===a.grupoId)?.nome||'',a.estrelas||0,a.presencas||0,a.faltas||0,tot>0?Math.round(((a.presencas||0)/tot)*100)+'%':'']);});const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');const u=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));Object.assign(document.createElement('a'),{href:u,download:'edustar.csv'}).click();URL.revokeObjectURL(u);toast('CSV exportado!','ok');}
 
 /* ════ CONFIGURAÇÕES ════ */
-function renderConfig(){const c=DATA.config||{};sv('cfgNomePlat',c.nomePlat||'EduStar');sv('cfgCor2',c.cor2||'#C9953A');const dm=gi('cfgDarkMode');if(dm)dm.checked=!!c.darkMode;syncSwatches(c.cor2||'#C9953A');sv('cfgPresenca',c.presenca??10);sv('cfgPartic',c.participacao??5);sv('cfgAtraso',c.atraso??-2);sv('cfgFalta',c.falta??-5);sv('cfgBonus100',c.bonus100??10);sv('cfgKFreq',c.kahootFreqMin??75);sv('cfgMetaEst',c.metaEstrMes??50);const en=gi('cfgEscolaNome');if(en)en.textContent=USER?.schoolNome||'—';const ec=gi('cfgEscolaCodigo');if(ec)ec.textContent=USER?.schoolId||'—';const bt=gi('btnCopiarCfg');if(bt)bt.style.display=USER?.schoolId?'inline-flex':'none';}
+function renderConfig(){const c=DATA.config||{};sv('cfgNomePlat',c.nomePlat||'EduStar');sv('cfgCor2',c.cor2||'#C9953A');const dm=gi('cfgDarkMode');if(dm)dm.checked=!!c.darkMode;syncSwatches(c.cor2||'#C9953A');sv('cfgPresenca',c.presenca??10);sv('cfgPartic',c.participacao??5);sv('cfgAtraso',c.atraso??-2);sv('cfgFalta',c.falta??-5);sv('cfgBonus100',c.bonus100??10);sv('cfgKFreq',c.kahootFreqMin??75);sv('cfgMetaEst',c.metaEstrMes??50);const en=gi('cfgEscolaNome');if(en)en.textContent=USER?.schoolNome||'—';const ec=gi('cfgEscolaCodigo');if(ec)ec.textContent=USER?.schoolId||'—';const ca=gi('cfgCodigoAluno');if(ca)ca.textContent=USER?.codigoAluno||'—';}
 async function saveConfig(){DATA.config={nomePlat:gv('cfgNomePlat')||'EduStar',cor2:gv('cfgCor2')||'#C9953A',darkMode:gi('cfgDarkMode')?.checked||false,presenca:parseInt(gv('cfgPresenca'))||10,participacao:parseInt(gv('cfgPartic'))||5,atraso:parseInt(gv('cfgAtraso'))||-2,falta:parseInt(gv('cfgFalta'))||-5,bonus100:parseInt(gv('cfgBonus100'))||10,kahootFreqMin:parseInt(gv('cfgKFreq'))||75,metaEstrMes:parseInt(gv('cfgMetaEst'))||50};await persist();applyTheme();toast('✅ Configurações salvas!','ok');}
-function cfgTabSwitch(tab,btn){document.querySelectorAll('.cfg-tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.cfg-tab-panel').forEach(p=>p.style.display='none');btn.classList.add('active');const p=gi('cfgTab_'+tab);if(p)p.style.display='block';if(tab==='status')renderSbStatus();if(tab==='escola'){const en=gi('cfgEscolaNome');if(en)en.textContent=USER?.schoolNome||'—';const ec=gi('cfgEscolaCodigo');if(ec)ec.textContent=USER?.schoolId||'—';const bt=gi('btnCopiarCfg');if(bt)bt.style.display=USER?.schoolId?'inline-flex':'none';}}
+function cfgTabSwitch(tab,btn){document.querySelectorAll('.cfg-tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.cfg-tab-panel').forEach(p=>p.style.display='none');btn.classList.add('active');const p=gi('cfgTab_'+tab);if(p)p.style.display='block';if(tab==='status')renderSbStatus();if(tab==='escola'){const en=gi('cfgEscolaNome');if(en)en.textContent=USER?.schoolNome||'—';const ec=gi('cfgEscolaCodigo');if(ec)ec.textContent=USER?.schoolId||'—';const ca=gi('cfgCodigoAluno');if(ca)ca.textContent=USER?.codigoAluno||'—';}}
 function renderSbStatus(){const el=gi('sbStatusContent');if(!el)return;const checks=[[SB_OK,'Supabase configurado',SB_OK?'URL e chave detectadas.':'Cole SUPABASE_URL e SUPABASE_ANON no index.html'],[SB_OK&&!!sb,'Conexão estabelecida',SB_OK&&sb?'Cliente Supabase criado.':'Verifique as credenciais.'],[!!USER?.schoolId,'Escola vinculada',USER?.schoolId?`Código: ${USER.schoolId} — ${USER.schoolNome||''}`:'Entre ou crie uma escola.'],[SB_OK&&!!USER?.schoolId,'Dados na nuvem',SB_OK&&USER?.schoolId?'Dados compartilhados entre membros.':'Configure Supabase e vincule uma escola.']];el.innerHTML=checks.map(([ok,label,detail])=>`<div style="display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)"><span style="font-size:18px;flex-shrink:0">${ok?'✅':'❌'}</span><div><div style="font-size:13px;font-weight:600;color:${ok?'var(--green)':'var(--red)'}">${label}</div><div style="font-size:12px;color:var(--t3);margin-top:2px">${detail}</div></div></div>`).join('');}
+
+/* ════ SUGESTÕES ════ */
+function renderSugestoes(){
+  const aluno = !isProf();
+  const box = gi('sugAlunoBox'); if(box) box.style.display = aluno ? 'block' : 'none';
+  if (!DATA.sugestoes) DATA.sugestoes = [];
+  const list = [...DATA.sugestoes].sort((a,b)=>b.criadoEm-a.criadoEm);
+  gi('sugList').innerHTML = list.length ? list.map(s=>`
+    <div class="card-item" style="align-items:flex-start">
+      <div class="ci-icon">💡</div>
+      <div class="ci-body">
+        <div class="ci-title">${esc(s.texto)}</div>
+        <div class="ci-sub">Por ${esc(s.autor)} · ${fmtDate(s.criadoEm)} ${s.resolvida?'· <span class="badge green">Resolvida</span>':''}</div>
+      </div>
+      <div class="ci-actions">
+        ${isProf()?`<button class="ibtn ${s.resolvida?'':'gold'}" onclick="togSugestao('${s.id}')" title="${s.resolvida?'Reabrir':'Marcar resolvida'}">${s.resolvida?'↩':'✓'}</button><button class="ibtn red" onclick="delSugestao('${s.id}')">🗑</button>`:''}
+      </div>
+    </div>`).join('')
+    : emptyHTML('💡', aluno?'Nenhuma sugestão ainda — envie a primeira!':'Nenhuma sugestão recebida', aluno?'':'Os alunos podem enviar sugestões pela conta deles.');
+}
+async function enviarSugestao(){
+  const txt = (gi('sugTexto')?.value||'').trim();
+  if (!txt) { toast('Escreva sua sugestão.','warn'); return; }
+  if (!DATA.sugestoes) DATA.sugestoes = [];
+  DATA.sugestoes.push({ id:uid(), texto:txt, autor:USER.nome||USER.email, criadoEm:Date.now(), resolvida:false });
+  sv('sugTexto','');
+  await persist(); renderSugestoes(); toast('💡 Sugestão enviada! Obrigado.','ok');
+}
+async function togSugestao(id){
+  const s=DATA.sugestoes.find(x=>x.id===id); if(s){s.resolvida=!s.resolvida; await persist(); renderSugestoes();}
+}
+async function delSugestao(id){
+  if(!confirm('Remover sugestão?'))return;
+  DATA.sugestoes=DATA.sugestoes.filter(x=>x.id!==id); await persist(); renderSugestoes();
+}
 
 /* ════ TEMA ════ */
 function applyTheme(){const c=DATA.config||{};document.documentElement.classList.toggle('dark',!!c.darkMode);const db=gi('darkBtn');if(db)db.textContent=c.darkMode?'☀️':'🌙';if(c.cor2){const root=document.documentElement,h=c.cor2.replace('#',''),r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);root.style.setProperty('--gold',c.cor2);root.style.setProperty('--gold-l',`rgba(${r},${g},${b},.12)`);root.style.setProperty('--gold-b',`rgba(${r},${g},${b},.3)`);}if(c.nomePlat){document.querySelectorAll('.plat-nome').forEach(e=>e.textContent=c.nomePlat);document.title=c.nomePlat;}}
@@ -1065,8 +1279,18 @@ function pickCor(val){const el=gi('cfgCor2');if(el)el.value=val;previewCor(val);
 function syncSwatches(val){document.querySelectorAll('.cp-swatch').forEach(s=>{const sv=s.style.background;s.classList.toggle('sel',sv.toLowerCase()===val.toLowerCase());});}
 
 /* ════ CÓDIGO ════ */
-function mostrarCodigo(){if(!USER?.schoolId){toast('Nenhuma escola vinculada.','warn');return;}gi('mCodigoVal').textContent=USER.schoolId;gi('mCodigoNome').textContent=USER.schoolNome||'';openM('mCodigo');}
-function copiarCodigo(){const code=USER?.schoolId||gi('cfgEscolaCodigo')?.textContent;if(!code||code==='—')return;navigator.clipboard.writeText(code).then(()=>toast('✅ Código copiado!','ok')).catch(()=>{const r=document.createRange(),el=gi('mCodigoVal');if(!el)return;r.selectNode(el);window.getSelection().removeAllRanges();window.getSelection().addRange(r);document.execCommand('copy');window.getSelection().removeAllRanges();toast('✅ Código copiado!','ok');});}
+function mostrarCodigo(){
+  if(!USER?.schoolId){toast('Nenhuma escola vinculada.','warn');return;}
+  if(!isProf()){toast('Apenas moderadores veem os códigos.','warn');return;}
+  gi('mCodigoVal').textContent=USER.schoolId;
+  gi('mCodigoAlunoVal').textContent=USER.codigoAluno||'—';
+  gi('mCodigoNome').textContent=USER.schoolNome||'';
+  openM('mCodigo');
+}
+function copiarTxt(txt){if(!txt||txt==='—')return;navigator.clipboard.writeText(txt).then(()=>toast('✅ Copiado!','ok')).catch(()=>toast('Copie manualmente: '+txt,'warn',5000));}
+function copiarCodigoMod(){copiarTxt(USER?.schoolId);}
+function copiarCodigoAluno(){copiarTxt(USER?.codigoAluno);}
+function copiarCodigo(){copiarTxt(USER?.schoolId||gi('cfgEscolaCodigo')?.textContent);}
 </script>
 </body>
 </html>
