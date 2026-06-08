@@ -294,7 +294,7 @@ body.role-aluno .nav-item[data-page="configuracoes"]{display:none}
       <div id="sp_criar" class="school-panel">
         <p style="font-size:13px;color:var(--t3);margin-bottom:14px;line-height:1.6">Crie sua escola. Você receberá <b>2 códigos</b>: um para moderadores e um para alunos.</p>
         <div class="fgroup"><label class="flabel">Nome da escola</label><input id="spNomeEscola" class="finput" placeholder="Ex: E.E. Prof. João Silva"></div>
-        <div class="fgroup"><label class="flabel">Código para os alunos</label><input id="spCodigoAluno" class="finput" placeholder="Ex: TURMA2025" style="text-transform:uppercase;letter-spacing:1px;font-family:monospace"><small style="display:block;font-size:11px;color:var(--t3);margin-top:4px">Você escolhe — é esse código que os alunos vão usar para entrar.</small></div>
+        <div class="fgroup"><label class="flabel">Código para os alunos</label><input id="spCodigoAluno" class="finput" value="TADM1M" style="text-transform:uppercase;letter-spacing:1px;font-family:monospace"><small style="display:block;font-size:11px;color:var(--t3);margin-top:4px">Você escolhe — é esse código que os alunos vão usar para entrar.</small></div>
         <button id="btnCriarEscola" class="btn primary full" onclick="criarEscola()">🏫 Criar escola</button>
       </div>
       <div id="sp_entrar" class="school-panel" style="display:none">
@@ -448,6 +448,7 @@ body.role-aluno .nav-item[data-page="configuracoes"]{display:none}
           <select id="freqTurma" class="finput" style="width:200px;margin:0" onchange="renderFreqList()"></select>
           <input id="freqData" type="date" class="finput" style="width:160px;margin:0">
           <button class="btn gold" onclick="salvarFreq()">💾 Salvar Frequência</button>
+          <button class="btn danger" onclick="reiniciarFaltas()">🔄 Reiniciar faltas</button>
         </div>
         <div id="freqSummary" class="freq-summary"></div>
         <div id="freqList"></div>
@@ -981,7 +982,7 @@ function applyPagePermission() {
   const pg = gi('pg-'+activePage);
   if (!pg) return;
   // Botões de ação (criar/salvar/editar) dentro da página atual
-  pg.querySelectorAll('.btn.primary, .btn.gold, .ci-actions, .ar-actions, .freq-btns').forEach(el => {
+  pg.querySelectorAll('.btn.primary, .btn.gold, .btn.danger, .ci-actions, .ar-actions, .freq-btns').forEach(el => {
     if (el.getAttribute('onclick')?.includes('enviarSugestao')) return;
     el.style.display = pode ? '' : 'none';
   });
@@ -1168,6 +1169,18 @@ function renderFrequencia(){ fillSel('freqTurma',DATA.turmas,'Todas as turmas',a
 function renderFreqList(){ const tId=gv('freqTurma');activeTurmaId=tId; let list=DATA.alunos;if(tId)list=list.filter(a=>a.turmaId===tId); if(!list.length){gi('freqList').innerHTML=emptyHTML('📅','Nenhum aluno');gi('freqSummary').innerHTML='';return;} list.forEach(a=>{if(!freqState[a.id])freqState[a.id]='presente';}); const p=list.filter(a=>freqState[a.id]==='presente').length,au=list.filter(a=>freqState[a.id]==='ausente').length,at=list.filter(a=>freqState[a.id]==='atraso').length; gi('freqSummary').innerHTML=`<span>✅ <b>${p}</b> presentes</span><span>❌ <b>${au}</b> faltas</span><span>⏰ <b>${at}</b> atrasos</span>${list.every(a=>freqState[a.id]==='presente')?'<span class="badge green">🎯 Turma completa — bônus!</span>':''}`; gi('freqList').innerHTML=list.map(a=>`<div class="freq-row" id="fr_${a.id}"><div class="fr-nome">${esc(a.nome)}</div><div class="freq-btns"><button class="fq-btn presente ${freqState[a.id]==='presente'?'active':''}" onclick="setFq('${a.id}','presente')">✅ Presente</button><button class="fq-btn atraso ${freqState[a.id]==='atraso'?'active':''}" onclick="setFq('${a.id}','atraso')">⏰ Atraso</button><button class="fq-btn ausente ${freqState[a.id]==='ausente'?'active':''}" onclick="setFq('${a.id}','ausente')">❌ Falta</button></div></div>`).join(''); }
 function setFq(id,val){ freqState[id]=val; const row=gi('fr_'+id);if(!row)return; row.querySelectorAll('.fq-btn').forEach(b=>b.classList.remove('active')); row.querySelector(`.fq-btn.${val}`)?.classList.add('active'); const list=DATA.alunos.filter(a=>!activeTurmaId||a.turmaId===activeTurmaId); gi('freqSummary').innerHTML=`<span>✅ <b>${list.filter(a=>freqState[a.id]==='presente').length}</b> presentes</span><span>❌ <b>${list.filter(a=>freqState[a.id]==='ausente').length}</b> faltas</span><span>⏰ <b>${list.filter(a=>freqState[a.id]==='atraso').length}</b> atrasos</span>${list.every(a=>freqState[a.id]==='presente')?'<span class="badge green">🎯 Turma completa — bônus!</span>':''}` }
 async function salvarFreq(){ const tId=gv('freqTurma'),data=gv('freqData')||today(); let list=DATA.alunos;if(tId)list=list.filter(a=>a.turmaId===tId); if(!list.length){toast('Nenhum aluno.','warn');return;} const cfg=DATA.config,todos=list.every(a=>freqState[a.id]==='presente'); list.forEach(a=>{const s=freqState[a.id]||'presente';let d=s==='presente'?(cfg.presenca||10):s==='atraso'?(cfg.atraso||-2):(cfg.falta||-5);if(todos&&s==='presente')d+=(cfg.bonus100||10);a.estrelas=Math.max(0,(a.estrelas||0)+d);a.presencas=(a.presencas||0)+(s==='presente'?1:0);a.faltas=(a.faltas||0)+(s==='ausente'?1:0);if(!a.historico)a.historico=[];a.historico.push({data,status:s,delta:d});}); freqState={}; await persist();renderFrequencia();toast('✅ Frequência salva!','ok'); }
+async function reiniciarFaltas(){
+  if(!confirm('Reiniciar TODAS as faltas, presenças e atrasos de TODOS os alunos?\n\nIsso zera o histórico de frequência. As estrelas NÃO são alteradas.\n\nEssa ação não pode ser desfeita.'))return;
+  DATA.alunos.forEach(a=>{
+    a.presencas=0;
+    a.faltas=0;
+    if(a.historico) a.historico=a.historico.filter(h=>h.status==='manual'||(h.status||'').startsWith('desafio'));
+  });
+  freqState={};
+  await persist();
+  renderFrequencia();
+  toast('🔄 Faltas, presenças e atrasos reiniciados!','ok');
+}
 
 /* ════ ESTRELAS ════ */
 function renderEstrelas(){ gi('estGrupos').innerHTML=[...DATA.grupos].sort((a,b)=>{const ea=DATA.alunos.filter(x=>x.grupoId===a.id).reduce((s,x)=>s+(x.estrelas||0),0),eb=DATA.alunos.filter(x=>x.grupoId===b.id).reduce((s,x)=>s+(x.estrelas||0),0);return eb-ea;}).map((g,i)=>{const est=DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0);return`<div class="grupo-card" style="border-top:3px solid ${g.cor||'#C9953A'}"><div class="gc-top"><div class="gc-dot" style="background:${g.cor||'#C9953A'}"></div><span class="gc-nome">${esc(g.nome)}</span></div><div class="gc-pts">⭐ ${est}</div><div class="gc-sub">${['🥇','🥈','🥉'][i]||'#'+(i+1)} lugar</div></div>`;}).join('')||emptyHTML('🏆','Nenhum grupo ainda'); const sorted=[...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0)),max=sorted[0]?.estrelas||1; gi('estIndiv').innerHTML=sorted.map((a,i)=>{const g=DATA.grupos.find(x=>x.id===a.grupoId);return`<div class="aluno-row"><span class="rk-pos-lg">${['🥇','🥈','🥉'][i]||`<span class="rk-n">${i+1}</span>`}</span><div class="ar-body"><div class="ar-nome">${esc(a.nome)}</div><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${Math.round(((a.estrelas||0)/max)*100)}%;background:${g?.cor||'#C9953A'}"></div></div></div></div><div class="ar-est">⭐ ${a.estrelas||0}</div><div class="ar-actions"><button class="ibtn gold" onclick="addEst('${a.id}',1)">+</button><button class="ibtn" onclick="addEst('${a.id}',-1)">−</button></div></div>`;}).join('')||emptyHTML('⭐','Nenhum aluno ainda'); }
