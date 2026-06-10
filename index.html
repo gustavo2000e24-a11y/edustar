@@ -385,6 +385,7 @@ textarea.finput{resize:vertical;min-height:72px}
         <div class="sb-section">Sistema</div>
         <button class="nav-item" data-page="ranking" onclick="navTo('ranking')"><span class="nav-icon">🥇</span> Ranking</button>
         <button class="nav-item" id="navSugestoes" data-page="sugestoes" onclick="navTo('sugestoes')"><span class="nav-icon">💡</span> Sugestões</button>
+        <button class="nav-item" id="navAtestados" data-page="atestados" onclick="navTo('atestados')"><span class="nav-icon">📄</span> Atestados</button>
         <button class="nav-item" id="navMembros" data-page="membros" onclick="navTo('membros')"><span class="nav-icon">👥</span> Participantes</button>
         <button class="nav-item" data-page="relatorios" onclick="navTo('relatorios')"><span class="nav-icon">📄</span> Relatórios</button>
         <div class="sb-footer">
@@ -536,6 +537,8 @@ textarea.finput{resize:vertical;min-height:72px}
           <div class="card-item" style="flex-direction:column;align-items:stretch;gap:10px">
             <div style="font-weight:600;font-size:14px">💡 Enviar uma sugestão</div>
             <textarea id="sugTexto" class="finput" rows="3" placeholder="Escreva sua sugestão, ideia ou pedido para os professores…"></textarea>
+            <label class="flabel" style="margin:0">📎 Anexar imagem (opcional)</label>
+            <input id="sugImg" type="file" accept="image/*" class="finput" style="padding:7px">
             <button class="btn gold" style="align-self:flex-end" onclick="enviarSugestao()">Enviar sugestão</button>
           </div>
         </div>
@@ -553,6 +556,20 @@ textarea.finput{resize:vertical;min-height:72px}
         <div id="membrosAlunos" style="margin-bottom:22px"></div>
         <h3 style="font-family:'Instrument Serif',serif;font-size:16px;margin-bottom:12px">👨‍🏫 Professores / Moderadores</h3>
         <div id="membrosProfs"></div>
+      </div>
+ 
+      <!-- ATESTADOS -->
+      <div class="pg pb" id="pg-atestados">
+        <div id="atestadoBox" style="margin-bottom:16px">
+          <div class="card-item" style="flex-direction:column;align-items:stretch;gap:10px">
+            <div style="font-weight:600;font-size:14px">📄 Enviar atestado / documento</div>
+            <input id="atNome" class="finput" placeholder="Aluno / motivo (ex: Ana — atestado médico 12/06)">
+            <label class="flabel" style="margin:0">📎 Arquivo (imagem ou PDF)</label>
+            <input id="atArquivo" type="file" accept="image/*,application/pdf" class="finput" style="padding:7px">
+            <button class="btn gold" style="align-self:flex-end" onclick="enviarAtestado()">Enviar atestado</button>
+          </div>
+        </div>
+        <div id="atestadosList"></div>
       </div>
  
       <!-- RELATÓRIOS -->
@@ -969,7 +986,7 @@ function startApp(user) {
 }
  
 /* Páginas que ALUNOS podem editar (ferramentas colaborativas) */
-const ALUNO_EDITA = ['swot','w2h','porques','sugestoes','configuracoes'];
+const ALUNO_EDITA = ['swot','w2h','porques','sugestoes','configuracoes','atestados'];
  
 /* Aplica restrições visuais conforme o papel */
 function applyRoleUI() {
@@ -1121,7 +1138,7 @@ function mergeData(r) {
 function defaultData() {
   return {
     config:{ nomePlat:'EduStar', cor2:'#C9953A', darkMode:false, presenca:10, participacao:5, atraso:-2, falta:-5, bonus100:10, kahootFreqMin:75, metaEstrMes:50 },
-    turmas:[], grupos:[], alunos:[], recompensas:[], desafios:[], kahoot:[], metas:[], swot:[], w2h:[], porques:[], sugestoes:[], membros:[]
+    turmas:[], grupos:[], alunos:[], recompensas:[], desafios:[], kahoot:[], metas:[], swot:[], w2h:[], porques:[], sugestoes:[], membros:[], atestados:[]
   };
 }
  
@@ -1162,7 +1179,7 @@ document.addEventListener('keydown',e=>{
 });
  
 /* ════ NAV ════ */
-const PAGE_TITLES={dashboard:'Dashboard',turmas:'Turmas',grupos:'Grupos',alunos:'Alunos',frequencia:'Frequência',estrelas:'⭐ Rota das Estrelas',desafios:'Desafios',kahoot:'Kahoot',recompensas:'Recompensas',metas:'Metas',swot:'Matriz SWOT',w2h:'5W2H',porques:'5 Porquês',ranking:'Ranking',sugestoes:'💡 Sugestões',membros:'👥 Participantes',relatorios:'Relatórios',configuracoes:'Configurações'};
+const PAGE_TITLES={dashboard:'Dashboard',turmas:'Turmas',grupos:'Grupos',alunos:'Alunos',frequencia:'Frequência',estrelas:'⭐ Rota das Estrelas',desafios:'Desafios',kahoot:'Kahoot',recompensas:'Recompensas',metas:'Metas',swot:'Matriz SWOT',w2h:'5W2H',porques:'5 Porquês',ranking:'Ranking',sugestoes:'💡 Sugestões',atestados:'📄 Atestados',membros:'👥 Participantes',relatorios:'Relatórios',configuracoes:'Configurações'};
  
 function navTo(page){
   activePage=page;
@@ -1177,7 +1194,7 @@ function navTo(page){
 function switchTab(tab){ document.querySelectorAll('.auth-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab)); document.querySelectorAll('.auth-panel').forEach(p=>p.style.display='none'); const p=gi('panel_'+tab); if(p)p.style.display='block'; clearErrs(); }
  
 function renderAll(){ applyTheme(); if(!isProf())aplicarTemaLocalAluno(); document.querySelectorAll('.plat-nome').forEach(e=>e.textContent=DATA.config?.nomePlat||'EduStar'); document.title=DATA.config?.nomePlat||'EduStar'; renderPage(activePage); }
-function renderPage(p){ ({dashboard:renderDash,turmas:renderTurmas,grupos:renderGrupos,alunos:renderAlunos,frequencia:renderFrequencia,estrelas:renderEstrelas,desafios:renderDesafios,kahoot:renderKahoot,recompensas:renderRecomp,metas:renderMetas,swot:renderSwot,w2h:renderW2H,porques:renderPorques,ranking:renderRanking,sugestoes:renderSugestoes,membros:renderMembros,configuracoes:renderConfig,relatorios:()=>{}})[p]?.(); }
+function renderPage(p){ ({dashboard:renderDash,turmas:renderTurmas,grupos:renderGrupos,alunos:renderAlunos,frequencia:renderFrequencia,estrelas:renderEstrelas,desafios:renderDesafios,kahoot:renderKahoot,recompensas:renderRecomp,metas:renderMetas,swot:renderSwot,w2h:renderW2H,porques:renderPorques,ranking:renderRanking,sugestoes:renderSugestoes,atestados:renderAtestados,membros:renderMembros,configuracoes:renderConfig,relatorios:()=>{}})[p]?.(); }
  
 /* ════ DASHBOARD ════ */
 function renderDash(){
@@ -1391,6 +1408,31 @@ function tempoRelativo(ms){
   return Math.floor(h/24)+' dia(s)';
 }
  
+/* ════ UPLOAD DE ARQUIVOS ════ */
+function fileToBase64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result);
+    r.onerror=rej;
+    r.readAsDataURL(file);
+  });
+}
+async function uploadArquivo(file, pasta){
+  // Limite de 5MB
+  if (file.size > 5*1024*1024) { throw new Error('Arquivo muito grande (máx. 5MB).'); }
+  if (!SB_OK || !sb) {
+    // Offline: guarda como base64 (apenas arquivos pequenos)
+    return { url: await fileToBase64(file), nome: file.name, tipo: file.type };
+  }
+  const ext = (file.name.split('.').pop()||'bin').toLowerCase();
+  const caminho = `${USER.schoolId}/${pasta}/${uid()}.${ext}`;
+  const { error } = await sb.storage.from('anexos').upload(caminho, file, { upsert:false });
+  if (error) throw error;
+  const { data:pub } = sb.storage.from('anexos').getPublicUrl(caminho);
+  return { url: pub.publicUrl, nome: file.name, tipo: file.type, caminho };
+}
+function ehImagem(tipo){ return (tipo||'').startsWith('image/'); }
+ 
 /* ════ SUGESTÕES ════ */
 function renderSugestoes(){
   const aluno = !isProf();
@@ -1402,6 +1444,7 @@ function renderSugestoes(){
       <div class="ci-icon">💡</div>
       <div class="ci-body">
         <div class="ci-title">${esc(s.texto)}</div>
+        ${s.anexo?`<div style="margin-top:8px"><a href="${s.anexo.url}" target="_blank">${ehImagem(s.anexo.tipo)?`<img src="${s.anexo.url}" style="max-width:200px;max-height:160px;border-radius:8px;border:1px solid var(--border)">`:`📎 ${esc(s.anexo.nome)}`}</a></div>`:''}
         <div class="ci-sub">Por ${esc(s.autor)} · ${fmtDate(s.criadoEm)} ${s.resolvida?'· <span class="badge green">Resolvida</span>':''}</div>
       </div>
       <div class="ci-actions">
@@ -1414,9 +1457,52 @@ async function enviarSugestao(){
   const txt = (gi('sugTexto')?.value||'').trim();
   if (!txt) { toast('Escreva sua sugestão.','warn'); return; }
   if (!DATA.sugestoes) DATA.sugestoes = [];
-  DATA.sugestoes.push({ id:uid(), texto:txt, autor:USER.nome||USER.email, criadoEm:Date.now(), resolvida:false });
-  sv('sugTexto','');
+  let anexo = null;
+  const fileEl = gi('sugImg');
+  if (fileEl?.files?.length) {
+    try { toast('Enviando imagem…','',2000); anexo = await uploadArquivo(fileEl.files[0], 'sugestoes'); }
+    catch(e){ toast('Erro no anexo: '+e.message,'err'); return; }
+  }
+  DATA.sugestoes.push({ id:uid(), texto:txt, autor:USER.nome||USER.email, criadoEm:Date.now(), resolvida:false, anexo });
+  sv('sugTexto',''); if(fileEl) fileEl.value='';
   await persist(); renderSugestoes(); toast('💡 Sugestão enviada! Obrigado.','ok');
+}
+ 
+/* ════ ATESTADOS ════ */
+function renderAtestados(){
+  if (!DATA.atestados) DATA.atestados = [];
+  const list = [...DATA.atestados].sort((a,b)=>b.criadoEm-a.criadoEm);
+  gi('atestadosList').innerHTML = list.length ? list.map(a=>`
+    <div class="card-item" style="align-items:flex-start">
+      <div class="ci-icon">📄</div>
+      <div class="ci-body">
+        <div class="ci-title">${esc(a.titulo)}</div>
+        ${a.anexo?`<div style="margin-top:8px"><a href="${a.anexo.url}" target="_blank">${ehImagem(a.anexo.tipo)?`<img src="${a.anexo.url}" style="max-width:220px;max-height:180px;border-radius:8px;border:1px solid var(--border)">`:`📎 Abrir ${esc(a.anexo.nome)}`}</a></div>`:''}
+        <div class="ci-sub">Enviado por ${esc(a.autor)} · ${fmtDate(a.criadoEm)}</div>
+      </div>
+      <div class="ci-actions">
+        ${isProf()?`<button class="ibtn red" onclick="delAtestado('${a.id}')">🗑</button>`:''}
+      </div>
+    </div>`).join('')
+    : emptyHTML('📄','Nenhum atestado enviado','Anexe um arquivo de imagem ou PDF acima.');
+}
+async function enviarAtestado(){
+  const titulo = (gi('atNome')?.value||'').trim();
+  const fileEl = gi('atArquivo');
+  if (!titulo) { toast('Informe o aluno/motivo.','warn'); return; }
+  if (!fileEl?.files?.length) { toast('Anexe o arquivo do atestado.','warn'); return; }
+  if (!DATA.atestados) DATA.atestados = [];
+  let anexo;
+  try { toast('Enviando arquivo…','',3000); anexo = await uploadArquivo(fileEl.files[0], 'atestados'); }
+  catch(e){ toast('Erro no anexo: '+e.message,'err'); return; }
+  DATA.atestados.push({ id:uid(), titulo, autor:USER.nome||USER.email, criadoEm:Date.now(), anexo });
+  sv('atNome',''); fileEl.value='';
+  await persist(); renderAtestados(); toast('📄 Atestado enviado!','ok');
+}
+async function delAtestado(id){
+  if(!confirm('Remover atestado?'))return;
+  DATA.atestados=DATA.atestados.filter(a=>a.id!==id);
+  await persist(); renderAtestados();
 }
 async function togSugestao(id){
   const s=DATA.sugestoes.find(x=>x.id===id); if(s){s.resolvida=!s.resolvida; await persist(); renderSugestoes();}
@@ -1456,4 +1542,3 @@ function copiarCodigo(){copiarTxt(USER?.schoolId||gi('cfgEscolaCodigo')?.textCon
 </script>
 </body>
 </html>
- 
