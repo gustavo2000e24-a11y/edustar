@@ -385,6 +385,7 @@ textarea.finput{resize:vertical;min-height:72px}
         <div class="sb-section">Sistema</div>
         <button class="nav-item" data-page="ranking" onclick="navTo('ranking')"><span class="nav-icon">🥇</span> Ranking</button>
         <button class="nav-item" id="navSugestoes" data-page="sugestoes" onclick="navTo('sugestoes')"><span class="nav-icon">💡</span> Sugestões</button>
+        <button class="nav-item" id="navMembros" data-page="membros" onclick="navTo('membros')"><span class="nav-icon">👥</span> Participantes</button>
         <button class="nav-item" data-page="relatorios" onclick="navTo('relatorios')"><span class="nav-icon">📄</span> Relatórios</button>
         <div class="sb-footer">
           <button class="nav-item" data-page="configuracoes" onclick="navTo('configuracoes')"><span class="nav-icon">⚙️</span> Configurações</button>
@@ -539,6 +540,19 @@ textarea.finput{resize:vertical;min-height:72px}
           </div>
         </div>
         <div id="sugList"></div>
+      </div>
+ 
+      <!-- PARTICIPANTES -->
+      <div class="pg pb" id="pg-membros">
+        <div class="stats-grid" style="margin-bottom:18px">
+          <div class="stat-card"><div class="sc-label">👨‍🏫 Professores</div><div class="sc-val" id="mProfCount">0</div></div>
+          <div class="stat-card"><div class="sc-label">🎓 Alunos</div><div class="sc-val" id="mAlunoCount">0</div></div>
+          <div class="stat-card"><div class="sc-label">🟢 Online agora</div><div class="sc-val" id="mOnlineCount">0</div></div>
+        </div>
+        <h3 style="font-family:'Instrument Serif',serif;font-size:16px;margin-bottom:12px">🎓 Alunos na escola</h3>
+        <div id="membrosAlunos" style="margin-bottom:22px"></div>
+        <h3 style="font-family:'Instrument Serif',serif;font-size:16px;margin-bottom:12px">👨‍🏫 Professores / Moderadores</h3>
+        <div id="membrosProfs"></div>
       </div>
  
       <!-- RELATÓRIOS -->
@@ -970,6 +984,9 @@ function applyRoleUI() {
   document.body.classList.toggle('role-aluno', aluno);
   const sugBox = gi('sugAlunoBox');
   if (sugBox) sugBox.style.display = aluno ? 'block' : 'none';
+  // Aba Participantes só para professores
+  const navM = gi('navMembros');
+  if (navM) navM.style.display = aluno ? 'none' : 'flex';
   // Aplica preferência de cor/tema local do aluno
   if (aluno) aplicarTemaLocalAluno();
   applyPagePermission();
@@ -1048,6 +1065,27 @@ async function loadData() {
   renderAll();
   syncStatus('Online','ok');
   setTimeout(()=>syncStatus('Online',''),100);
+  registrarPresenca();
+  iniciarPresenca();
+}
+ 
+/* ════ PRESENÇA / MEMBROS ════ */
+let _presencaTimer = null;
+async function registrarPresenca() {
+  if (!USER?.schoolId) return;
+  if (!DATA.membros) DATA.membros = [];
+  const i = DATA.membros.findIndex(m => m.uid === USER.uid);
+  const reg = { uid: USER.uid, nome: USER.nome||USER.email, email: USER.email, role: USER.role||'professor', lastSeen: Date.now() };
+  if (i >= 0) DATA.membros[i] = reg; else DATA.membros.push(reg);
+  await persist();
+}
+function iniciarPresenca() {
+  if (_presencaTimer) clearInterval(_presencaTimer);
+  // Atualiza presença a cada 60s
+  _presencaTimer = setInterval(() => {
+    registrarPresenca();
+    if (activePage === 'membros') renderMembros();
+  }, 60000);
 }
  
 async function persist() {
@@ -1083,7 +1121,7 @@ function mergeData(r) {
 function defaultData() {
   return {
     config:{ nomePlat:'EduStar', cor2:'#C9953A', darkMode:false, presenca:10, participacao:5, atraso:-2, falta:-5, bonus100:10, kahootFreqMin:75, metaEstrMes:50 },
-    turmas:[], grupos:[], alunos:[], recompensas:[], desafios:[], kahoot:[], metas:[], swot:[], w2h:[], porques:[], sugestoes:[]
+    turmas:[], grupos:[], alunos:[], recompensas:[], desafios:[], kahoot:[], metas:[], swot:[], w2h:[], porques:[], sugestoes:[], membros:[]
   };
 }
  
@@ -1124,7 +1162,7 @@ document.addEventListener('keydown',e=>{
 });
  
 /* ════ NAV ════ */
-const PAGE_TITLES={dashboard:'Dashboard',turmas:'Turmas',grupos:'Grupos',alunos:'Alunos',frequencia:'Frequência',estrelas:'⭐ Rota das Estrelas',desafios:'Desafios',kahoot:'Kahoot',recompensas:'Recompensas',metas:'Metas',swot:'Matriz SWOT',w2h:'5W2H',porques:'5 Porquês',ranking:'Ranking',sugestoes:'💡 Sugestões',relatorios:'Relatórios',configuracoes:'Configurações'};
+const PAGE_TITLES={dashboard:'Dashboard',turmas:'Turmas',grupos:'Grupos',alunos:'Alunos',frequencia:'Frequência',estrelas:'⭐ Rota das Estrelas',desafios:'Desafios',kahoot:'Kahoot',recompensas:'Recompensas',metas:'Metas',swot:'Matriz SWOT',w2h:'5W2H',porques:'5 Porquês',ranking:'Ranking',sugestoes:'💡 Sugestões',membros:'👥 Participantes',relatorios:'Relatórios',configuracoes:'Configurações'};
  
 function navTo(page){
   activePage=page;
@@ -1139,7 +1177,7 @@ function navTo(page){
 function switchTab(tab){ document.querySelectorAll('.auth-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab)); document.querySelectorAll('.auth-panel').forEach(p=>p.style.display='none'); const p=gi('panel_'+tab); if(p)p.style.display='block'; clearErrs(); }
  
 function renderAll(){ applyTheme(); if(!isProf())aplicarTemaLocalAluno(); document.querySelectorAll('.plat-nome').forEach(e=>e.textContent=DATA.config?.nomePlat||'EduStar'); document.title=DATA.config?.nomePlat||'EduStar'; renderPage(activePage); }
-function renderPage(p){ ({dashboard:renderDash,turmas:renderTurmas,grupos:renderGrupos,alunos:renderAlunos,frequencia:renderFrequencia,estrelas:renderEstrelas,desafios:renderDesafios,kahoot:renderKahoot,recompensas:renderRecomp,metas:renderMetas,swot:renderSwot,w2h:renderW2H,porques:renderPorques,ranking:renderRanking,sugestoes:renderSugestoes,configuracoes:renderConfig,relatorios:()=>{}})[p]?.(); }
+function renderPage(p){ ({dashboard:renderDash,turmas:renderTurmas,grupos:renderGrupos,alunos:renderAlunos,frequencia:renderFrequencia,estrelas:renderEstrelas,desafios:renderDesafios,kahoot:renderKahoot,recompensas:renderRecomp,metas:renderMetas,swot:renderSwot,w2h:renderW2H,porques:renderPorques,ranking:renderRanking,sugestoes:renderSugestoes,membros:renderMembros,configuracoes:renderConfig,relatorios:()=>{}})[p]?.(); }
  
 /* ════ DASHBOARD ════ */
 function renderDash(){
@@ -1310,6 +1348,49 @@ function aplicarTemaLocalAluno(){
 function cfgTabSwitch(tab,btn){document.querySelectorAll('.cfg-tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.cfg-tab-panel').forEach(p=>p.style.display='none');btn.classList.add('active');const p=gi('cfgTab_'+tab);if(p)p.style.display='block';if(tab==='status')renderSbStatus();if(tab==='escola'){const en=gi('cfgEscolaNome');if(en)en.textContent=USER?.schoolNome||'—';const ec=gi('cfgEscolaCodigo');if(ec)ec.textContent=USER?.schoolId||'—';const ca=gi('cfgCodigoAluno');if(ca)ca.textContent=USER?.codigoAluno||'—';}}
 function renderSbStatus(){const el=gi('sbStatusContent');if(!el)return;const checks=[[SB_OK,'Supabase configurado',SB_OK?'URL e chave detectadas.':'Cole SUPABASE_URL e SUPABASE_ANON no index.html'],[SB_OK&&!!sb,'Conexão estabelecida',SB_OK&&sb?'Cliente Supabase criado.':'Verifique as credenciais.'],[!!USER?.schoolId,'Escola vinculada',USER?.schoolId?`Código: ${USER.schoolId} — ${USER.schoolNome||''}`:'Entre ou crie uma escola.'],[SB_OK&&!!USER?.schoolId,'Dados na nuvem',SB_OK&&USER?.schoolId?'Dados compartilhados entre membros.':'Configure Supabase e vincule uma escola.']];el.innerHTML=checks.map(([ok,label,detail])=>`<div style="display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)"><span style="font-size:18px;flex-shrink:0">${ok?'✅':'❌'}</span><div><div style="font-size:13px;font-weight:600;color:${ok?'var(--green)':'var(--red)'}">${label}</div><div style="font-size:12px;color:var(--t3);margin-top:2px">${detail}</div></div></div>`).join('');}
  
+/* ════ PARTICIPANTES ════ */
+function renderMembros(){
+  if (!gi('mProfCount')) return;
+  const membros = DATA.membros || [];
+  const agora = Date.now();
+  const online = m => (agora - (m.lastSeen||0)) < 2*60*1000; // 2 min
+  const alunos = membros.filter(m => m.role === 'aluno');
+  const profs  = membros.filter(m => m.role !== 'aluno');
+  gi('mProfCount').textContent = profs.length;
+  gi('mAlunoCount').textContent = alunos.length;
+  gi('mOnlineCount').textContent = membros.filter(online).length;
+ 
+  const card = m => {
+    const on = online(m);
+    const quando = m.lastSeen ? tempoRelativo(agora - m.lastSeen) : '—';
+    return `<div class="aluno-row">
+      <div class="ar-av">${initials(m.nome)}</div>
+      <div class="ar-body">
+        <div class="ar-nome">${esc(m.nome)}</div>
+        <div class="ar-meta"><span class="badge ${m.role==='aluno'?'blue':'green'}">${m.role==='aluno'?'🎓 Aluno':'👨‍🏫 Professor'}</span> <span style="font-size:11px;color:var(--t3)">${on?'visto agora':'visto há '+quando}</span></div>
+      </div>
+      <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:${on?'var(--green)':'var(--t3)'}">
+        <span style="width:8px;height:8px;border-radius:50%;background:${on?'var(--green)':'var(--t4)'}"></span>${on?'Online':'Offline'}
+      </span>
+    </div>`;
+  };
+ 
+  gi('membrosAlunos').innerHTML = alunos.length
+    ? alunos.sort((a,b)=>(b.lastSeen||0)-(a.lastSeen||0)).map(card).join('')
+    : emptyHTML('🎓','Nenhum aluno entrou ainda','Compartilhe o código de aluno para eles entrarem.');
+  gi('membrosProfs').innerHTML = profs.length
+    ? profs.sort((a,b)=>(b.lastSeen||0)-(a.lastSeen||0)).map(card).join('')
+    : emptyHTML('👨‍🏫','Nenhum professor registrado');
+}
+function tempoRelativo(ms){
+  const min = Math.floor(ms/60000);
+  if (min < 1) return 'menos de 1 min';
+  if (min < 60) return min+' min';
+  const h = Math.floor(min/60);
+  if (h < 24) return h+'h';
+  return Math.floor(h/24)+' dia(s)';
+}
+ 
 /* ════ SUGESTÕES ════ */
 function renderSugestoes(){
   const aluno = !isProf();
@@ -1375,3 +1456,4 @@ function copiarCodigo(){copiarTxt(USER?.schoolId||gi('cfgEscolaCodigo')?.textCon
 </script>
 </body>
 </html>
+ 
