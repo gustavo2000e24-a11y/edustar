@@ -6,7 +6,7 @@
 <title>EduStar</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⭐</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -26,7 +26,7 @@
   --tr:.18s cubic-bezier(.4,0,.2,1);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased}
+body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
 ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}::-webkit-scrollbar-track{background:transparent}
 input,button,select,textarea{font-family:inherit;font-size:inherit}button{cursor:pointer}a{color:var(--primary)}
 
@@ -82,8 +82,9 @@ html.dark .demo-banner{background:#2A1F00;border-color:#3D2E00;color:var(--gold)
 #authScreen,#schoolScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px}
 .auth-wrap{width:100%;max-width:400px}
 .auth-logo{text-align:center;margin-bottom:28px}
-.auth-logo-icon{font-size:32px;display:block;margin-bottom:8px}
-.auth-logo h1{font-family:'Instrument Serif',serif;font-size:26px;letter-spacing:-.3px}
+.auth-logo-icon{display:flex;justify-content:center;margin-bottom:12px}
+.brand-mark{width:26px;height:26px;display:inline-flex;flex-shrink:0}.brand-mark svg{width:26px;height:26px;border-radius:8px;box-shadow:0 2px 6px rgba(48,86,211,.28)}
+.auth-logo h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:28px;letter-spacing:-.03em}
 .auth-logo p{font-size:13px;color:var(--t3);margin-top:3px}
 .auth-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:24px;box-shadow:var(--sh2)}
 .auth-tabs{display:flex;gap:2px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:3px;margin-bottom:20px}
@@ -119,7 +120,7 @@ textarea.finput{resize:vertical;min-height:72px}
 /* App */
 #app{display:none;flex-direction:column;min-height:100vh}
 .topbar{height:var(--tb);background:var(--glass);backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:10px;position:sticky;top:0;z-index:100;box-shadow:0 1px 3px rgba(15,23,42,.04)}
-.topbar-brand{font-family:'Instrument Serif',serif;font-size:18px;display:flex;align-items:center;gap:7px;flex-shrink:0}
+.topbar-brand{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;letter-spacing:-.02em;display:flex;align-items:center;gap:9px;flex-shrink:0}
 .topbar-spacer{flex:1}
 .topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--gold);flex-shrink:0}
@@ -133,25 +134,43 @@ textarea.finput{resize:vertical;min-height:72px}
 /* Sidebar */
 .sidebar{width:var(--sb);min-width:var(--sb);background:var(--glass);backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;transition:transform var(--tr)}
 .nav-item.active{position:relative}.nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:60%;background:var(--primary);border-radius:0 3px 3px 0}
-.sb-section{padding:14px 10px 4px;font-size:10px;font-weight:700;color:var(--t4);letter-spacing:.7px;text-transform:uppercase}
+.sb-section{padding:16px 12px 5px;font-size:10.5px;font-weight:700;color:var(--t4);letter-spacing:.09em;text-transform:uppercase}
 .nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border:none;background:none;color:var(--t2);font-size:13px;font-weight:500;border-radius:var(--r);cursor:pointer;text-align:left;width:100%;transition:all var(--tr)}
 .nav-item:hover{background:var(--surface2);color:var(--text)}.nav-item.active{background:var(--primary-l);color:var(--primary);font-weight:600}
-.nav-icon{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.nav-icon{width:18px;height:18px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;opacity:.85}.nav-icon svg{width:18px;height:18px}.nav-item.active .nav-icon{opacity:1}
 .sb-footer{padding:8px 10px;border-top:1px solid var(--border);margin-top:auto}
 
 /* Main */
 .main-panel{flex:1;overflow-y:auto;display:flex;flex-direction:column}
 .main-toolbar{padding:14px 20px;background:var(--glass);backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:10}
-#pageTitle{font-family:'Instrument Serif',serif;font-size:19px}
+#pageTitle{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;letter-spacing:-.02em}
 .pb{padding:16px 20px;flex:1}
 .pg{display:none}.pg.active{display:block;animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 
 /* Stats */
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
-.stat-card{background:var(--glass-strong);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:var(--rl);padding:18px;transition:all var(--tr);box-shadow:var(--sh-card)}.stat-card:hover{box-shadow:var(--sh2);transform:translateY(-3px);border-color:var(--primary)}
-.sc-label{font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:7px}
-.sc-val{font-family:'Instrument Serif',serif;font-size:28px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:22px}
+/* Dashboard hero */
+.dash-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:22px 24px;margin-bottom:22px;border-radius:var(--rxl);background:linear-gradient(120deg,var(--primary),var(--primary-d));color:#fff;box-shadow:0 12px 32px rgba(48,86,211,.28);position:relative;overflow:hidden}
+.dash-hero::after{content:'';position:absolute;right:-40px;top:-60px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.09)}
+.dash-eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.75;margin-bottom:6px}
+.dash-greet{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:26px;letter-spacing:-.02em;line-height:1.1}
+.dash-sub{font-size:13.5px;opacity:.82;margin-top:5px}
+.dash-hero-badge{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.14);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:12px 18px;position:relative;z-index:1}
+.dhb-star{width:30px;height:30px;color:var(--gold)}.dhb-star svg{width:30px;height:30px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.2))}
+.dhb-num{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:24px;line-height:1;letter-spacing:-.02em}
+.dhb-lbl{font-size:11px;opacity:.8;margin-top:2px}
+/* Stat card icons */
+.sc-top{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.sc-ic{width:34px;height:34px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}.sc-ic svg{width:18px;height:18px}
+.sc-blue{background:var(--blue-l);color:var(--blue)}.sc-violet{background:#F1EBFE;color:#7C3AED}.sc-amber{background:#FEF3E2;color:#D97706}
+.sc-green{background:var(--green-l);color:var(--green)}.sc-gold{background:var(--gold-l);color:var(--gold)}.sc-rose{background:#FDEAF2;color:#DB2777}
+html.dark .sc-violet{background:#2A2140}html.dark .sc-amber{background:#3A2A12}html.dark .sc-rose{background:#3A1E2C}
+.sc-label{font-size:11.5px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin:0}
+.stat-card .sc-val{margin-left:2px}
+.stat-card{position:relative;background:var(--glass-strong);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:var(--rl);padding:18px;transition:all var(--tr);box-shadow:var(--sh-card)}
+.stat-card:hover{box-shadow:var(--sh2);transform:translateY(-3px);border-color:var(--border2)}
+.sc-val{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:30px;letter-spacing:-.03em}
 .charts-row{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:20px}
 .chart-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px}
 .chart-box h4{font-size:13px;margin-bottom:12px}
@@ -170,7 +189,7 @@ textarea.finput{resize:vertical;min-height:72px}
 .groups-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
 .grupo-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px;transition:box-shadow var(--tr)}.grupo-card:hover{box-shadow:var(--sh)}
 .gc-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}.gc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}.gc-nome{font-size:14px;font-weight:600;flex:1}
-.gc-pts{font-family:'Instrument Serif',serif;font-size:22px;color:var(--gold);margin-bottom:3px}.gc-sub{font-size:12px;color:var(--t3);margin-bottom:8px}
+.gc-pts{font-family:'Space Grotesk',sans-serif;font-size:22px;color:var(--gold);margin-bottom:3px}.gc-sub{font-size:12px;color:var(--t3);margin-bottom:8px}
 .gc-members{display:flex;flex-wrap:wrap}.chip{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:2px 7px;font-size:11px;font-weight:500;margin:2px}
 
 /* Alunos */
@@ -211,7 +230,7 @@ textarea.finput{resize:vertical;min-height:72px}
 
 /* 5P */
 .p5-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px;margin-bottom:8px}
-.p5-head{display:flex;justify-content:space-between;margin-bottom:10px}.p5-prob{font-family:'Instrument Serif',serif;font-size:15px;flex:1}
+.p5-head{display:flex;justify-content:space-between;margin-bottom:10px}.p5-prob{font-family:'Space Grotesk',sans-serif;font-size:15px;flex:1}
 .p5-list{padding-left:18px;font-size:13px;color:var(--t2);line-height:1.8}
 .p5-causa{background:var(--green-l);border:1px solid #a7f3d0;border-radius:7px;padding:8px 10px;font-size:12.5px;color:var(--green);margin-top:8px}
 
@@ -233,7 +252,7 @@ textarea.finput{resize:vertical;min-height:72px}
 .cfg-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap}.cfg-row:last-child{border-bottom:none}
 .cfg-label{font-size:13px;color:var(--t2);flex:1}.cfg-label small{display:block;font-size:11px;color:var(--t3);margin-top:1px}
 .cfg-val{width:100px;text-align:right}
-.cfg-tab-btn{background:none;border:none;border-bottom:2px solid transparent;padding:8px 14px 10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;transition:all var(--tr);margin-bottom:-1px;white-space:nowrap}
+.cfg-tab-btn{background:none;border:none;border-bottom:2px solid transparent;padding:8px 14px 10px;font-family:'Manrope',sans-serif;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;transition:all var(--tr);margin-bottom:-1px;white-space:nowrap}
 .cfg-tab-btn:hover{color:var(--text)}.cfg-tab-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
 .cfg-tab-panel{animation:fadeIn .2s ease}
 
@@ -252,7 +271,7 @@ textarea.finput{resize:vertical;min-height:72px}
 .modal.wide{max-width:640px}
 @keyframes mIn{from{opacity:0;transform:scale(.95)translateY(8px)}to{opacity:1;transform:none}}
 .m-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 0}
-.m-head h3{font-family:'Instrument Serif',serif;font-size:17px}
+.m-head h3{font-family:'Space Grotesk',sans-serif;font-size:17px}
 .m-close{background:none;border:none;color:var(--t3);font-size:18px;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background var(--tr)}.m-close:hover{background:var(--surface2)}
 .m-body{padding:16px 20px}.m-foot{padding:0 20px 18px;display:flex;justify-content:flex-end;gap:8px}
 
@@ -375,7 +394,7 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
 <div id="tipoScreen" style="display:flex;min-height:100vh;align-items:center;justify-content:center;background:var(--bg);padding:20px">
   <div class="auth-wrap">
     <div class="auth-logo">
-      <span class="auth-logo-icon">⭐</span>
+      <span class="auth-logo-icon"><svg viewBox="0 0 56 56" fill="none" style="width:52px;height:52px"><rect width="56" height="56" rx="16" fill="var(--primary)"/><path d="M28 12l4.1 9.45 9.9.87-7.5 6.5L36.8 39 28 33.6 19.2 39l2.3-10.18-7.5-6.5 9.9-.87z" fill="#fff"/></svg></span>
       <h1 class="plat-nome">EduStar</h1>
       <p>Gestão escolar gamificada</p>
     </div>
@@ -399,7 +418,7 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
 <div id="schoolScreen" style="display:none">
   <div class="auth-wrap">
     <div class="auth-logo">
-      <span class="auth-logo-icon">🏫</span>
+      <span class="auth-logo-icon"><svg viewBox="0 0 56 56" fill="none" style="width:52px;height:52px"><rect width="56" height="56" rx="16" fill="var(--primary)"/><g stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M28 16l12 6-12 6-12-6z"/><path d="M20 26v9c4.5 4 11.5 4 16 0v-9"/><path d="M40 22v8"/></g></svg></span>
       <h1 class="plat-nome">EduStar</h1>
       <p>Olá, <strong id="spUserNome"></strong>!</p>
     </div>
@@ -438,7 +457,7 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
 <div id="authScreen">
   <div class="auth-wrap">
     <div class="auth-logo">
-      <span class="auth-logo-icon">⭐</span>
+      <span class="auth-logo-icon"><svg viewBox="0 0 56 56" fill="none" style="width:52px;height:52px"><rect width="56" height="56" rx="16" fill="var(--primary)"/><path d="M28 12l4.1 9.45 9.9.87-7.5 6.5L36.8 39 28 33.6 19.2 39l2.3-10.18-7.5-6.5 9.9-.87z" fill="#fff"/></svg></span>
       <h1 class="plat-nome">EduStar</h1>
       <p>Gestão escolar gamificada</p>
     </div>
@@ -468,7 +487,7 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
   <div id="demoBanner" class="demo-banner" style="display:none">⚠️ Supabase não configurado — dados salvos localmente</div>
   <div class="topbar">
     <button class="hamburger" onclick="gi('sidebar').classList.toggle('open')">☰</button>
-    <div class="topbar-brand">⭐ <span class="plat-nome">EduStar</span></div>
+    <div class="topbar-brand"><span class="brand-mark"><svg viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="9" fill="var(--primary)"/><path d="M16 7l2.35 5.4 5.65.5-4.28 3.72L20.9 22 16 18.9 11.1 22l1.18-4.68L8 13.6l5.65-.5z" fill="#fff"/></svg></span> <span class="plat-nome">EduStar</span></div>
     <div class="topbar-spacer"></div>
     <div class="topbar-right">
       <span class="sync-dot" id="syncDot"></span>
@@ -485,56 +504,64 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
     <aside class="sidebar" id="sidebar">
       <div style="padding:8px 10px">
         <div class="sb-section">Principal</div>
-        <button class="nav-item active" data-page="dashboard" onclick="navTo('dashboard')"><span class="nav-icon">📊</span> Dashboard</button>
+        <button class="nav-item active" data-page="dashboard" onclick="navTo('dashboard')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg></span> Painel</button>
         <div class="sb-section">Gestão</div>
-        <button class="nav-item" data-page="turmas" onclick="navTo('turmas')"><span class="nav-icon">🏫</span> Turmas</button>
-        <button class="nav-item" data-page="grupos" onclick="navTo('grupos')"><span class="nav-icon">🏆</span> Grupos</button>
-        <button class="nav-item" data-page="alunos" onclick="navTo('alunos')"><span class="nav-icon">👥</span> Alunos</button>
+        <button class="nav-item" data-page="turmas" onclick="navTo('turmas')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 22v-4a2 2 0 0 0-4 0v4"/><path d="m18 10 4 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8l4-2"/><path d="M18 5v17"/><path d="m4 6 8-4 8 4"/><path d="M6 5v17"/><circle cx="12" cy="9" r="2"/></svg></span> Turmas</button>
+        <button class="nav-item" data-page="grupos" onclick="navTo('grupos')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></span> Grupos</button>
+        <button class="nav-item" data-page="alunos" onclick="navTo('alunos')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Alunos</button>
         <div class="sb-section">Sala de Aula</div>
-        <button class="nav-item" data-page="frequencia" onclick="navTo('frequencia')"><span class="nav-icon">📅</span> Frequência</button>
-        <button class="nav-item" data-page="estrelas" onclick="navTo('estrelas')"><span class="nav-icon">⭐</span> Rota das Estrelas</button>
-        <button class="nav-item" data-page="desafios" onclick="navTo('desafios')"><span class="nav-icon">🎯</span> Desafios</button>
-        <button class="nav-item" data-page="kahoot" onclick="navTo('kahoot')"><span class="nav-icon">🎮</span> Kahoot</button>
-        <button class="nav-item" data-page="recompensas" onclick="navTo('recompensas')"><span class="nav-icon">🎁</span> Recompensas</button>
+        <button class="nav-item" data-page="frequencia" onclick="navTo('frequencia')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span> Frequência</button>
+        <button class="nav-item" data-page="estrelas" onclick="navTo('estrelas')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg></span> Rota das Estrelas</button>
+        <button class="nav-item" data-page="desafios" onclick="navTo('desafios')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span> Desafios</button>
+        <button class="nav-item" data-page="kahoot" onclick="navTo('kahoot')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="6" x2="10" y1="12" y2="12"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="15" x2="15.01" y1="13" y2="13"/><line x1="18" x2="18.01" y1="11" y2="11"/><rect width="20" height="12" x="2" y="6" rx="2"/></svg></span> Kahoot</button>
+        <button class="nav-item" data-page="recompensas" onclick="navTo('recompensas')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg></span> Recompensas</button>
         <div class="sb-section">Ferramentas</div>
-        <button class="nav-item" data-page="metas" onclick="navTo('metas')"><span class="nav-icon">📋</span> Metas</button>
-        <button class="nav-item" data-page="swot" onclick="navTo('swot')"><span class="nav-icon">🔷</span> SWOT</button>
-        <button class="nav-item" data-page="w2h" onclick="navTo('w2h')"><span class="nav-icon">📝</span> 5W2H</button>
-        <button class="nav-item" data-page="porques" onclick="navTo('porques')"><span class="nav-icon">🔍</span> 5 Porquês</button>
+        <button class="nav-item" data-page="metas" onclick="navTo('metas')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg></span> Metas</button>
+        <button class="nav-item" data-page="swot" onclick="navTo('swot')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 12h18"/><path d="M12 3v18"/></svg></span> SWOT</button>
+        <button class="nav-item" data-page="w2h" onclick="navTo('w2h')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8M13 12h8M13 18h8"/></svg></span> 5W2H</button>
+        <button class="nav-item" data-page="porques" onclick="navTo('porques')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> 5 Porquês</button>
         <div class="sb-section">Sistema</div>
-        <button class="nav-item" data-page="ranking" onclick="navTo('ranking')"><span class="nav-icon">🥇</span> Ranking</button>
-        <button class="nav-item" id="navSugestoes" data-page="sugestoes" onclick="navTo('sugestoes')"><span class="nav-icon">💡</span> Sugestões</button>
-        <button class="nav-item" id="navAtestados" data-page="atestados" onclick="navTo('atestados')"><span class="nav-icon">📄</span> Atestados</button>
-        <button class="nav-item" id="navMembros" data-page="membros" onclick="navTo('membros')"><span class="nav-icon">👥</span> Participantes</button>
-        <button class="nav-item" data-page="relatorios" onclick="navTo('relatorios')"><span class="nav-icon">📄</span> Relatórios</button>
+        <button class="nav-item" data-page="ranking" onclick="navTo('ranking')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span> Ranking</button>
+        <button class="nav-item" id="navSugestoes" data-page="sugestoes" onclick="navTo('sugestoes')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6M10 22h4"/></svg></span> Sugestões</button>
+        <button class="nav-item" id="navAtestados" data-page="atestados" onclick="navTo('atestados')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M16 13H8M16 17H8M10 9H8"/></svg></span> Atestados</button>
+        <button class="nav-item" id="navMembros" data-page="membros" onclick="navTo('membros')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg></span> Participantes</button>
+        <button class="nav-item" data-page="relatorios" onclick="navTo('relatorios')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></span> Relatórios</button>
         <div class="sb-footer">
-          <button class="nav-item" data-page="configuracoes" onclick="navTo('configuracoes')"><span class="nav-icon">⚙️</span> Configurações</button>
+          <button class="nav-item" data-page="configuracoes" onclick="navTo('configuracoes')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span> Configurações</button>
         </div>
       </div>
     </aside>
     <div class="main-panel">
       <div class="main-toolbar">
-        <span id="pageTitle" style="font-family:'Instrument Serif',serif;font-size:19px">Dashboard</span>
+        <span id="pageTitle">Painel</span>
         <div id="tbRight"></div>
       </div>
 
       <!-- DASHBOARD -->
       <div class="pg active pb" id="pg-dashboard">
+        <div class="dash-hero">
+          <div class="dash-hero-txt">
+            <div class="dash-eyebrow" id="dashData">Painel de controle</div>
+            <h2 class="dash-greet">Olá, <span id="dashNome">professor</span></h2>
+            <p class="dash-sub" id="dashEscola">Acompanhe o desempenho da sua escola</p>
+          </div>
+          <div class="dash-hero-badge" id="dashStars"><span class="dhb-star"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg></span><div><div class="dhb-num" id="dEs2">0</div><div class="dhb-lbl">estrelas no total</div></div></div>
+        </div>
         <div class="stats-grid">
-          <div class="stat-card"><div class="sc-label">👥 Alunos</div><div class="sc-val" id="dAl">0</div></div>
-          <div class="stat-card"><div class="sc-label">🏫 Turmas</div><div class="sc-val" id="dTu">0</div></div>
-          <div class="stat-card"><div class="sc-label">🏆 Grupos</div><div class="sc-val" id="dGr">0</div></div>
-          <div class="stat-card"><div class="sc-label">📅 Frequência</div><div class="sc-val" id="dFq">—</div></div>
-          <div class="stat-card"><div class="sc-label">⭐ Estrelas</div><div class="sc-val" id="dEs">0</div></div>
-          <div class="stat-card"><div class="sc-label">🎁 Recompensas</div><div class="sc-val" id="dRe">0</div></div>
+          <div class="stat-card"><div class="sc-top"><span class="sc-ic sc-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><div class="sc-label">Alunos</div></div><div class="sc-val" id="dAl">0</div></div>
+          <div class="stat-card"><div class="sc-top"><span class="sc-ic sc-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 8-4 8 4"/><path d="M18 5v17M6 5v17"/><circle cx="12" cy="9" r="2"/><path d="m18 10 4 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8l4-2"/></svg></span><div class="sc-label">Turmas</div></div><div class="sc-val" id="dTu">0</div></div>
+          <div class="stat-card"><div class="sc-top"><span class="sc-ic sc-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></span><div class="sc-label">Grupos</div></div><div class="sc-val" id="dGr">0</div></div>
+          <div class="stat-card"><div class="sc-top"><span class="sc-ic sc-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span><div class="sc-label">Frequência</div></div><div class="sc-val" id="dFq">—</div></div>
+          <div class="stat-card"><div class="sc-top"><span class="sc-ic sc-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg></span><div class="sc-label">Estrelas</div></div><div class="sc-val" id="dEs">0</div></div>
+          <div class="stat-card"><div class="sc-top"><span class="sc-ic sc-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg></span><div class="sc-label">Recompensas</div></div><div class="sc-val" id="dRe">0</div></div>
         </div>
         <div class="charts-row">
-          <div class="chart-box"><h4>⭐ Estrelas por Grupo</h4><canvas id="cGr"></canvas></div>
-          <div class="chart-box"><h4>📅 Frequência Geral</h4><canvas id="cFq"></canvas></div>
+          <div class="chart-box"><h4>Estrelas por grupo</h4><canvas id="cGr"></canvas></div>
+          <div class="chart-box"><h4>Frequência geral</h4><canvas id="cFq"></canvas></div>
         </div>
         <div class="two-col">
-          <div class="rank-box"><h4>🥇 Top 5 Alunos</h4><div id="dRank"></div></div>
-          <div class="rank-box"><h4>🏆 Grupos</h4><div id="dGrRank"></div></div>
+          <div class="rank-box"><h4>Top 5 alunos</h4><div id="dRank"></div></div>
+          <div class="rank-box"><h4>Grupos</h4><div id="dGrRank"></div></div>
         </div>
       </div>
 
@@ -577,9 +604,9 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
 
       <!-- ESTRELAS -->
       <div class="pg pb" id="pg-estrelas">
-        <h3 style="font-family:'Instrument Serif',serif;font-size:16px;margin-bottom:12px">Ranking de Grupos</h3>
+        <h3 style="font-family:'Space Grotesk',sans-serif;font-size:16px;margin-bottom:12px">Ranking de Grupos</h3>
         <div class="groups-grid" id="estGrupos" style="margin-bottom:22px"></div>
-        <h3 style="font-family:'Instrument Serif',serif;font-size:16px;margin-bottom:12px">Ranking Individual</h3>
+        <h3 style="font-family:'Space Grotesk',sans-serif;font-size:16px;margin-bottom:12px">Ranking Individual</h3>
         <div id="estIndiv"></div>
       </div>
 
@@ -644,9 +671,9 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
 
       <!-- RANKING -->
       <div class="pg pb" id="pg-ranking">
-        <h3 style="font-family:'Instrument Serif',serif;font-size:16px;margin-bottom:12px">🥇 Ranking Individual</h3>
+        <h3 style="font-family:'Space Grotesk',sans-serif;font-size:16px;margin-bottom:12px">🥇 Ranking Individual</h3>
         <div id="rankIndiv" style="margin-bottom:22px"></div>
-        <h3 style="font-family:'Instrument Serif',serif;font-size:16px;margin-bottom:12px">🏆 Ranking de Grupos</h3>
+        <h3 style="font-family:'Space Grotesk',sans-serif;font-size:16px;margin-bottom:12px">🏆 Ranking de Grupos</h3>
         <div class="rank-box" style="max-width:400px"><div id="rankGrupos"></div></div>
       </div>
 
@@ -671,9 +698,9 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
           <div class="stat-card"><div class="sc-label">🎓 Alunos</div><div class="sc-val" id="mAlunoCount">0</div></div>
           <div class="stat-card"><div class="sc-label">🟢 Online agora</div><div class="sc-val" id="mOnlineCount">0</div></div>
         </div>
-        <h3 style="font-family:'Instrument Serif',serif;font-size:16px;margin-bottom:12px">🎓 Alunos na escola</h3>
+        <h3 style="font-family:'Space Grotesk',sans-serif;font-size:16px;margin-bottom:12px">🎓 Alunos na escola</h3>
         <div id="membrosAlunos" style="margin-bottom:22px"></div>
-        <h3 style="font-family:'Instrument Serif',serif;font-size:16px;margin-bottom:12px">👨‍🏫 Professores / Moderadores</h3>
+        <h3 style="font-family:'Space Grotesk',sans-serif;font-size:16px;margin-bottom:12px">👨‍🏫 Professores / Moderadores</h3>
         <div id="membrosProfs"></div>
       </div>
 
@@ -1316,7 +1343,7 @@ document.addEventListener('keydown',e=>{
 });
 
 /* ════ NAV ════ */
-const PAGE_TITLES={dashboard:'Dashboard',turmas:'Turmas',grupos:'Grupos',alunos:'Alunos',frequencia:'Frequência',estrelas:'⭐ Rota das Estrelas',desafios:'Desafios',kahoot:'Kahoot',recompensas:'Recompensas',metas:'Metas',swot:'Matriz SWOT',w2h:'5W2H',porques:'5 Porquês',ranking:'Ranking',sugestoes:'💡 Sugestões',atestados:'📄 Atestados',membros:'👥 Participantes',relatorios:'Relatórios',configuracoes:'Configurações'};
+const PAGE_TITLES={dashboard:'Painel',turmas:'Turmas',grupos:'Grupos',alunos:'Alunos',frequencia:'Frequência',estrelas:'Rota das Estrelas',desafios:'Desafios',kahoot:'Kahoot',recompensas:'Recompensas',metas:'Metas',swot:'Matriz SWOT',w2h:'5W2H',porques:'5 Porquês',ranking:'Ranking',sugestoes:'Sugestões',atestados:'Atestados',membros:'Participantes',relatorios:'Relatórios',configuracoes:'Configurações'};
 
 function navTo(page){
   activePage=page;
@@ -1342,6 +1369,11 @@ function renderDash(){
   gi('dAl').textContent=DATA.alunos.length; gi('dTu').textContent=DATA.turmas.length;
   gi('dGr').textContent=DATA.grupos.length; gi('dFq').textContent=pct+'%';
   gi('dEs').textContent=est; gi('dRe').textContent=DATA.recompensas.length;
+  // Hero personalizado
+  const hn=gi('dashNome'); if(hn) hn.textContent=(USER?.nome||'').split(' ')[0]||(isProf()?'professor':'aluno');
+  const he=gi('dashEscola'); if(he) he.textContent=USER?.schoolNome?`${USER.schoolNome} · acompanhe o desempenho da turma`:'Acompanhe o desempenho da sua escola';
+  const he2=gi('dEs2'); if(he2) he2.textContent=est;
+  const hd=gi('dashData'); if(hd){ const dt=new Date(); hd.textContent=dt.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'}); }
   gi('dRank').innerHTML=[...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0)).slice(0,5)
     .map((a,i)=>`<div class="rank-row"><span class="rk-pos">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span><span class="rk-nome">${esc(a.nome)}</span><span class="rk-pts">⭐${a.estrelas||0}</span></div>`)
     .join('')||emptyHTML('🏆','Nenhum aluno ainda');
