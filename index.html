@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- EduStar build 20260706-164040 -->
+<!-- EduStar build 20260707-214852 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -498,7 +498,7 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
       <span id="syncTxt" style="font-size:12px;color:var(--t3)">Online</span>
       <span id="topEscola" class="escola-badge" onclick="mostrarCodigo()" title="Ver código"></span>
       <span id="roleBadge" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;border:1px solid;flex-shrink:0"></span>
-      <button id="darkBtn" class="btn outline sm" onclick="quickDark()" style="padding:5px 9px;font-size:16px">🌙</button>
+      <button id="darkBtn" class="btn outline sm" onclick="quickDark()" style="padding:6px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center" title="Alternar tema"></button>
       <div class="user-av" id="uAv">?</div>
       <span id="uNome" style="font-size:13px;color:var(--t2)"></span>
       <button class="btn outline sm" onclick="doLogout()">Sair</button>
@@ -1715,7 +1715,7 @@ function aplicarPrefUsuario(){
   const bg = p.bg || 'limpo';
   // Modo escuro
   document.documentElement.classList.toggle('dark', !!dark);
-  const db=gi('darkBtn'); if(db) db.textContent = dark?'☀️':'🌙';
+  const db=gi('darkBtn'); if(db) setDarkIcon(dark);
   // Cor de destaque
   const h=cor.replace('#',''),r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
   const root=document.documentElement;
@@ -1890,12 +1890,17 @@ async function delSugestao(id){
 }
 
 /* ════ TEMA ════ */
-function applyTheme(){const c=DATA.config||{};document.documentElement.classList.toggle('dark',!!c.darkMode);const db=gi('darkBtn');if(db)db.textContent=c.darkMode?'☀️':'🌙';if(c.cor2){const root=document.documentElement,h=c.cor2.replace('#',''),r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);root.style.setProperty('--gold',c.cor2);root.style.setProperty('--gold-l',`rgba(${r},${g},${b},.12)`);root.style.setProperty('--gold-b',`rgba(${r},${g},${b},.3)`);}if(c.nomePlat){document.querySelectorAll('.plat-nome').forEach(e=>e.textContent=c.nomePlat);document.title=c.nomePlat;}}
+function applyTheme(){const c=DATA.config||{};document.documentElement.classList.toggle('dark',!!c.darkMode);setDarkIcon(!!c.darkMode);if(c.cor2){const root=document.documentElement,h=c.cor2.replace('#',''),r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);root.style.setProperty('--gold',c.cor2);root.style.setProperty('--gold-l',`rgba(${r},${g},${b},.12)`);root.style.setProperty('--gold-b',`rgba(${r},${g},${b},.3)`);}if(c.nomePlat){document.querySelectorAll('.plat-nome').forEach(e=>e.textContent=c.nomePlat);document.title=c.nomePlat;}}
 function quickDark(){
   const p=prefUsuario(); p.darkMode=!(p.darkMode!=null?p.darkMode:(DATA.config?.darkMode||false)); salvarPrefUsuario(p); aplicarPrefUsuario();
   const cb=gi('cfgDarkMode'); if(cb)cb.checked=p.darkMode;
 }
-function toggleDarkLive(){const v=gi('cfgDarkMode')?.checked;document.documentElement.classList.toggle('dark',v);const db=gi('darkBtn');if(db)db.textContent=v?'☀️':'🌙';}
+function toggleDarkLive(){const v=gi('cfgDarkMode')?.checked;document.documentElement.classList.toggle('dark',v);setDarkIcon(v);}
+
+/* Ícone SVG de sol/lua no botão do topo */
+const _icMoon='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+const _icSun='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>';
+function setDarkIcon(dark){ const db=gi('darkBtn'); if(db) db.innerHTML = dark ? _icSun : _icMoon; }
 function previewCor(val){const root=document.documentElement,h=val.replace('#',''),r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);root.style.setProperty('--gold',val);root.style.setProperty('--gold-l',`rgba(${r},${g},${b},.12)`);root.style.setProperty('--gold-b',`rgba(${r},${g},${b},.3)`);syncSwatches(val);}
 function pickCor(val){const el=gi('cfgCor2');if(el)el.value=val;previewCor(val);}
 function syncSwatches(val){document.querySelectorAll('.cp-swatch').forEach(s=>{const sv=s.style.background;s.classList.toggle('sel',sv.toLowerCase()===val.toLowerCase());});}
