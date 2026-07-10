@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- EduStar build 20260707-215321 -->
+<!-- EduStar build 20260710-225648 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -315,6 +315,7 @@ html.dark .sc-violet{background:#2A2140}html.dark .sc-amber{background:#3A2A12}h
 
 /* Aluno: esconde apenas Configurações (resto é controlado por página via JS) */
 /* Aluno: aba de configurações é simplificada via JS */
+body.role-aluno [data-prof-only]{display:none !important}
 /* ══════════ FUNDO ANIMADO (otimizado — só translate, sem hue/scale) ══════════ */
 #bgFx{position:fixed;inset:0;z-index:-2;overflow:hidden;background:var(--bg);transition:background .5s}
 #bgFx .blob{position:absolute;width:42vw;height:42vw;border-radius:50%;filter:blur(58px);opacity:0;transition:opacity .6s;will-change:transform;transform:translateZ(0);backface-visibility:hidden}
@@ -584,7 +585,7 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
 
       <!-- ALUNOS -->
       <div class="pg pb" id="pg-alunos">
-        <div class="page-head"><div class="ph-l"><h2 class="ph-title">Alunos</h2><p class="ph-sub">Todos os alunos, suas turmas, grupos e estrelas</p></div><button class="btn primary" onclick="openNewAluno()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Novo aluno</button></div>
+        <div class="page-head"><div class="ph-l"><h2 class="ph-title">Alunos</h2><p class="ph-sub">Todos os alunos, suas turmas, grupos e estrelas</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn outline" onclick="openImport()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Importar lista</button><button class="btn primary" onclick="openNewAluno()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Novo aluno</button></div></div>
         <div class="page-toolbar">
           <input id="sAl" class="finput" style="max-width:240px;margin:0;flex:1" placeholder="Buscar por nome…" oninput="renderAlunos()">
           <select id="fAlT" class="finput" style="max-width:180px;margin:0" onchange="renderAlunos()"></select>
@@ -735,6 +736,7 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
 
       <!-- RELATÓRIOS -->
       <div class="pg pb" id="pg-relatorios">
+        <div class="page-head"><div class="ph-l"><h2 class="ph-title">Relatórios</h2><p class="ph-sub">Gere relatórios para imprimir e faça backup dos dados</p></div></div>
         <div class="relat-grid">
           <div class="relat-card" onclick="gerarRelatorio('geral')"><div class="rc-icon">📊</div><h4>Geral</h4><p>Alunos, grupos e estrelas</p></div>
           <div class="relat-card" onclick="gerarRelatorio('frequencia')"><div class="rc-icon">📅</div><h4>Frequência</h4><p>Presenças e faltas</p></div>
@@ -743,6 +745,13 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
           <div class="relat-card" onclick="gerarRelatorio('metas')"><div class="rc-icon">🎯</div><h4>Metas</h4><p>Status e progresso</p></div>
           <div class="relat-card" onclick="exportCSV()"><div class="rc-icon">📥</div><h4>Exportar CSV</h4><p>Todos os alunos</p></div>
         </div>
+        <div data-prof-only><h3 style="font-family:'Space Grotesk',sans-serif;font-size:16px;margin:26px 0 12px">💾 Backup e Segurança</h3>
+        <div class="relat-grid">
+          <div class="relat-card" onclick="baixarBackup()"><div class="rc-icon">⬇️</div><h4>Baixar backup</h4><p>Salva uma cópia de tudo no seu aparelho</p></div>
+          <div class="relat-card" onclick="gi('restoreInput').click()"><div class="rc-icon">⬆️</div><h4>Restaurar backup</h4><p>Recupera os dados de um arquivo salvo</p></div>
+        </div>
+        <input type="file" id="restoreInput" accept="application/json,.json" style="display:none" onchange="restaurarBackup(event)">
+        <p style="font-size:12px;color:var(--t3);margin-top:12px;line-height:1.6">💡 Dica: baixe um backup de vez em quando (ex: no fim de cada semana). Se algo der errado, você consegue recuperar tudo pelo arquivo salvo.</p></div>
       </div>
 
       <!-- CONFIGURAÇÕES -->
@@ -877,6 +886,12 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
 <div class="modal-overlay" id="mTurma"><div class="modal"><div class="m-head"><h3 id="mTurmaT">Nova Turma</h3><button class="m-close" onclick="closeM('mTurma')">✕</button></div><div class="m-body"><input type="hidden" id="ftId"><div class="fgroup"><label class="flabel">Nome</label><input id="ftNome" class="finput" placeholder="Ex: 3º Ano A"><div class="err-msg" id="err_ftNome"></div></div><div class="form-row"><div class="fgroup"><label class="flabel">Ano Letivo</label><input id="ftAno" class="finput" placeholder="2025"></div><div class="fgroup"><label class="flabel">Código</label><input id="ftCod" class="finput" placeholder="A01"></div></div></div><div class="m-foot"><button class="btn outline" onclick="closeM('mTurma')">Cancelar</button><button class="btn primary" onclick="saveTurma()">Salvar</button></div></div></div>
 <div class="modal-overlay" id="mGrupo"><div class="modal"><div class="m-head"><h3 id="mGrupoT">Novo Grupo</h3><button class="m-close" onclick="closeM('mGrupo')">✕</button></div><div class="m-body"><input type="hidden" id="fgId"><div class="fgroup"><label class="flabel">Nome</label><input id="fgNome" class="finput" placeholder="Ex: Grupo Águia"><div class="err-msg" id="err_fgNome"></div></div><div class="fgroup"><label class="flabel">Cor</label><input id="fgCor" type="color" class="finput" value="#C9953A" style="height:44px;cursor:pointer"></div></div><div class="m-foot"><button class="btn outline" onclick="closeM('mGrupo')">Cancelar</button><button class="btn primary" onclick="saveGrupo()">Salvar</button></div></div></div>
 <div class="modal-overlay" id="mAluno"><div class="modal wide"><div class="m-head"><h3 id="mAlunoT">Novo Aluno</h3><button class="m-close" onclick="closeM('mAluno')">✕</button></div><div class="m-body"><input type="hidden" id="faId"><div class="form-row"><div class="fgroup"><label class="flabel">Nome completo</label><input id="faNome" class="finput" placeholder="Ana Lima"><div class="err-msg" id="err_faNome"></div></div><div class="fgroup"><label class="flabel">E-mail</label><input id="faEmail" type="email" class="finput"></div></div><div class="fgroup"><label class="flabel">Telefone</label><input id="faTel" class="finput"></div><div class="form-row"><div class="fgroup"><label class="flabel">Turma</label><select id="faTurma" class="finput"></select></div><div class="fgroup"><label class="flabel">Grupo</label><select id="faGrupo" class="finput"></select></div></div></div><div class="m-foot"><button class="btn outline" onclick="closeM('mAluno')">Cancelar</button><button class="btn primary" onclick="saveAluno()">Salvar</button></div></div></div>
+
+<!-- IMPORTAR ALUNOS EM LOTE -->
+<div class="modal-overlay" id="mImport"><div class="modal wide"><div class="m-head"><h3>Importar lista de alunos</h3><button class="m-close" onclick="closeM('mImport')">✕</button></div><div class="m-body"><p style="font-size:13px;color:var(--t3);margin-bottom:12px;line-height:1.6">Cole os nomes dos alunos, <b>um por linha</b>. Pode copiar direto de uma lista do Word ou Excel. Cada linha vira um aluno.</p><div class="fgroup"><label class="flabel">Nomes (um por linha)</label><textarea id="impTexto" class="finput" rows="8" placeholder="Ana Lima&#10;Bruno Costa&#10;Carla Dias&#10;..."></textarea><div class="err-msg" id="err_impTexto"></div></div><div class="form-row"><div class="fgroup"><label class="flabel">Turma (para todos)</label><select id="impTurma" class="finput"></select></div><div class="fgroup"><label class="flabel">Grupo (para todos)</label><select id="impGrupo" class="finput"></select></div></div><p style="font-size:12px;color:var(--t3)" id="impPreview"></p></div><div class="m-foot"><button class="btn outline" onclick="closeM('mImport')">Cancelar</button><button class="btn primary" onclick="importarAlunos()">Criar alunos</button></div></div></div>
+
+<!-- PERFIL DO ALUNO -->
+<div class="modal-overlay" id="mPerfil"><div class="modal wide"><div class="m-head"><h3>Perfil do aluno</h3><button class="m-close" onclick="closeM('mPerfil')">✕</button></div><div class="m-body" id="perfilBody"></div></div></div>
 <div class="modal-overlay" id="mDesafio"><div class="modal"><div class="m-head"><h3 id="mDesafioT">Novo Desafio</h3><button class="m-close" onclick="closeM('mDesafio')">✕</button></div><div class="m-body"><input type="hidden" id="fdId"><div class="fgroup"><label class="flabel">Nome</label><input id="fdNome" class="finput"><div class="err-msg" id="err_fdNome"></div></div><div class="fgroup"><label class="flabel">Descrição</label><input id="fdDesc" class="finput"></div><div class="fgroup"><label class="flabel">⭐ Estrelas ao completar</label><input id="fdPts" type="number" class="finput" value="5"></div></div><div class="m-foot"><button class="btn outline" onclick="closeM('mDesafio')">Cancelar</button><button class="btn primary" onclick="saveDesafio()">Salvar</button></div></div></div>
 <div class="modal-overlay" id="mRegD"><div class="modal"><div class="m-head"><h3>Registrar Desafio</h3><button class="m-close" onclick="closeM('mRegD')">✕</button></div><div class="m-body"><input type="hidden" id="frDId"><p style="font-size:13px;color:var(--t2);margin-bottom:14px">Desafio: <b id="mRegDNome"></b></p><div class="fgroup"><label class="flabel">Aluno</label><select id="frDAluno" class="finput"></select></div></div><div class="m-foot"><button class="btn outline" onclick="closeM('mRegD')">Cancelar</button><button class="btn gold" onclick="confirmarDesafio()">✅ Confirmar</button></div></div></div>
 <div class="modal-overlay" id="mKahoot"><div class="modal"><div class="m-head"><h3>Resultado Kahoot</h3><button class="m-close" onclick="closeM('mKahoot')">✕</button></div><div class="m-body"><div class="fgroup"><label class="flabel">Aluno</label><select id="fkAluno" class="finput"></select></div><div class="form-row"><div class="fgroup"><label class="flabel">Colocação</label><select id="fkPos" class="finput"><option value="1">🥇 1º</option><option value="2">🥈 2º</option><option value="3">🥉 3º</option></select></div><div class="fgroup"><label class="flabel">Frequência (%)</label><input id="fkFreq" type="number" class="finput" min="0" max="100"></div></div><div class="fgroup"><label class="flabel">Data</label><input id="fkData" type="date" class="finput"></div></div><div class="m-foot"><button class="btn outline" onclick="closeM('mKahoot')">Cancelar</button><button class="btn primary" onclick="saveKahoot()">Registrar</button></div></div></div>
@@ -897,6 +912,37 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
     <div class="confirm-actions">
       <button class="btn outline" id="confirmCancel">Cancelar</button>
       <button class="btn danger" id="confirmOk">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TERMOS DE USO / COOKIES (só alunos novos) -->
+<div class="modal-overlay" id="mTermos" style="z-index:400">
+  <div class="modal" style="max-width:500px;max-height:92vh">
+    <div class="m-body" style="padding:26px 24px 20px">
+      <div style="text-align:center;margin-bottom:18px">
+        <span class="brand-mark" style="width:48px;height:48px;margin:0 auto 12px;display:inline-flex"><svg viewBox="0 0 32 32" fill="none" style="width:48px;height:48px"><rect width="32" height="32" rx="9" fill="var(--primary)"/><path d="M16 7l2.35 5.4 5.65.5-4.28 3.72L20.9 22 16 18.9 11.1 22l1.18-4.68L8 13.6l5.65-.5z" fill="#fff"/></svg></span>
+        <h3 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:20px;letter-spacing:-.02em">Bem-vindo(a) ao EduStar! 🎉</h3>
+        <p style="font-size:13px;color:var(--t3);margin-top:6px">Antes de começar, dá uma olhada em como funciona.</p>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--rl);padding:16px;max-height:38vh;overflow-y:auto;font-size:13px;line-height:1.7;color:var(--t2)">
+        <p style="font-weight:700;color:var(--text);margin-bottom:4px">📋 Termos de Uso</p>
+        <p style="margin-bottom:12px">O EduStar é uma plataforma da sua escola para acompanhar sua participação, presença e as estrelas que você conquista. Use com respeito: as informações aqui são da sua turma e dos seus professores.</p>
+
+        <p style="font-weight:700;color:var(--text);margin-bottom:4px">🔒 Seus dados</p>
+        <p style="margin-bottom:12px">A escola guarda seu nome e o registro das suas atividades (presenças, faltas e estrelas). Esses dados são usados só para o acompanhamento escolar e ficam sob responsabilidade dos professores da sua escola.</p>
+
+        <p style="font-weight:700;color:var(--text);margin-bottom:4px">🍪 Cookies e armazenamento</p>
+        <p style="margin-bottom:12px">Para o site funcionar bem, ele guarda algumas informações no seu aparelho (navegador), como suas preferências de aparência (cor, tema, fundo) e seus dados de acesso. Isso serve para você não precisar configurar tudo de novo a cada vez. Não usamos isso para anúncios.</p>
+
+        <p style="font-weight:700;color:var(--text);margin-bottom:4px">✅ O que você pode fazer</p>
+        <p>Você pode ver os rankings, sua pontuação, participar das ferramentas (SWOT, 5W2H, 5 Porquês) e enviar sugestões e atestados. Algumas áreas são só para leitura — apenas os professores editam.</p>
+      </div>
+      <label style="display:flex;align-items:center;gap:9px;margin:16px 2px;font-size:13.5px;cursor:pointer">
+        <input type="checkbox" id="termosCheck" onchange="gi('btnAceitarTermos').disabled=!this.checked" style="width:18px;height:18px;cursor:pointer;flex-shrink:0">
+        <span>Li e concordo com os termos de uso e o uso de cookies.</span>
+      </label>
+      <button class="btn primary full" id="btnAceitarTermos" onclick="aceitarTermos()" disabled>Aceitar e começar</button>
     </div>
   </div>
 </div>
@@ -1173,6 +1219,22 @@ function startApp(user) {
   applyRoleUI();
   showScreen('app');
   loadData();
+  // Termos de uso: só para alunos que ainda não aceitaram
+  mostrarTermosSeNecessario();
+}
+
+/* ── Termos de uso / cookies (apenas alunos novos) ── */
+function mostrarTermosSeNecessario(){
+  if (isProf()) return;                          // só alunos
+  if (LS.g('termos_'+(USER?.uid||'x'))) return;  // já aceitou antes
+  const chk = gi('termosCheck'); if(chk) chk.checked = false;
+  const btn = gi('btnAceitarTermos'); if(btn) btn.disabled = true;
+  setTimeout(()=>openM('mTermos'), 500);
+}
+function aceitarTermos(){
+  LS.s('termos_'+(USER?.uid||'x'), { aceito:true, data:new Date().toISOString() });
+  closeM('mTermos');
+  toast('✅ Tudo certo! Boa jornada no EduStar.','ok');
 }
 
 /* Páginas que ALUNOS podem editar (ferramentas colaborativas) */
@@ -1385,9 +1447,9 @@ function askConfirm(opts){
   });
 }
 
-document.addEventListener('click',e=>{ if(e.target.classList.contains('modal-overlay')) closeM(e.target.id); });
+document.addEventListener('click',e=>{ if(e.target.classList.contains('modal-overlay') && e.target.id!=='mTermos') closeM(e.target.id); });
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape') document.querySelectorAll('.modal-overlay.open').forEach(m=>closeM(m.id));
+  if(e.key==='Escape') document.querySelectorAll('.modal-overlay.open').forEach(m=>{ if(m.id!=='mTermos') closeM(m.id); });
   if(e.key==='Enter'&&gi('authScreen')?.style.display!=='none'){
     if(gi('panel_login')?.style.display!=='none') doLogin();
     else if(gi('panel_register')?.style.display!=='none') doRegister();
@@ -1452,11 +1514,62 @@ async function saveGrupo(){ const nome=gv('fgNome').trim();if(!nome){setErr('fgN
 async function delGrupo(id){ if(!await askConfirm({titulo:'Remover grupo?',msg:'O grupo será removido. Os alunos dele ficam sem grupo, mas não são apagados.',okTxt:'Remover'}))return; DATA.grupos=DATA.grupos.filter(g=>g.id!==id); DATA.alunos.forEach(a=>{if(a.grupoId===id)a.grupoId='';}); await persist();renderGrupos(); }
 
 /* ════ ALUNOS ════ */
-function renderAlunos(){ const q=gv('sAl').toLowerCase(),tF=gv('fAlT'),gF=gv('fAlG'); let list=DATA.alunos; if(q)list=list.filter(a=>a.nome.toLowerCase().includes(q)||a.id.toLowerCase().includes(q)); if(tF)list=list.filter(a=>a.turmaId===tF); if(gF)list=list.filter(a=>a.grupoId===gF); fillSel('fAlT',DATA.turmas,'Todas as turmas',tF); fillSel('fAlG',DATA.grupos,'Todos os grupos',gF); gi('alunosList').innerHTML=list.map(a=>{const t=DATA.turmas.find(x=>x.id===a.turmaId),g=DATA.grupos.find(x=>x.id===a.grupoId),tot=(a.presencas||0)+(a.faltas||0),pct=tot>0?Math.round(((a.presencas||0)/tot)*100):null;return`<div class="aluno-row"><div class="ar-av" ${g?`style="background:${g.cor}22;border-color:${g.cor}55;color:${g.cor}"`:''}>${initials(a.nome)}</div><div class="ar-body"><div class="ar-nome">${esc(a.nome)} <span class="badge gray">${a.id}</span></div><div class="ar-meta">${t?`<span class="badge blue">${esc(t.nome)}</span>`:''} ${g?`<span class="badge" style="background:${g.cor}22;color:${g.cor};border-color:${g.cor}44">${esc(g.nome)}</span>`:''} ${pct!==null?`<span class="badge ${pct>=75?'green':pct>=50?'warn':'red'}">${pct}%</span>`:''}</div></div><div class="ar-est">⭐ ${a.estrelas||0}</div><div class="ar-actions"><button class="ibtn" onclick="editAluno('${a.id}')">✏️</button><button class="ibtn red" onclick="delAluno('${a.id}')">🗑</button></div></div>`;}).join('')||emptyHTML('👥','Nenhum aluno encontrado'); }
+function renderAlunos(){ const q=gv('sAl').toLowerCase(),tF=gv('fAlT'),gF=gv('fAlG'); let list=DATA.alunos; if(q)list=list.filter(a=>a.nome.toLowerCase().includes(q)||a.id.toLowerCase().includes(q)); if(tF)list=list.filter(a=>a.turmaId===tF); if(gF)list=list.filter(a=>a.grupoId===gF); fillSel('fAlT',DATA.turmas,'Todas as turmas',tF); fillSel('fAlG',DATA.grupos,'Todos os grupos',gF); gi('alunosList').innerHTML=list.map(a=>{const t=DATA.turmas.find(x=>x.id===a.turmaId),g=DATA.grupos.find(x=>x.id===a.grupoId),tot=(a.presencas||0)+(a.faltas||0),pct=tot>0?Math.round(((a.presencas||0)/tot)*100):null;return`<div class="aluno-row"><div class="ar-av" onclick="verAluno('${a.id}')" style="cursor:pointer${g?`;background:${g.cor}22;border-color:${g.cor}55;color:${g.cor}`:''}">${initials(a.nome)}</div><div class="ar-body" onclick="verAluno('${a.id}')" style="cursor:pointer"><div class="ar-nome">${esc(a.nome)} <span class="badge gray">${a.id}</span></div><div class="ar-meta">${t?`<span class="badge blue">${esc(t.nome)}</span>`:''} ${g?`<span class="badge" style="background:${g.cor}22;color:${g.cor};border-color:${g.cor}44">${esc(g.nome)}</span>`:''} ${pct!==null?`<span class="badge ${pct>=75?'green':pct>=50?'warn':'red'}">${pct}%</span>`:''}</div></div><div class="ar-est">⭐ ${a.estrelas||0}</div><div class="ar-actions"><button class="ibtn" onclick="verAluno('${a.id}')" title="Ver perfil">👁️</button><button class="ibtn" onclick="editAluno('${a.id}')" title="Editar">✏️</button><button class="ibtn red" onclick="delAluno('${a.id}')" title="Excluir">🗑</button></div></div>`;}).join('')||emptyHTML('👥','Nenhum aluno encontrado'); }
 function openNewAluno(){ sv('faId','');sv('faNome','');sv('faEmail','');sv('faTel','');fillSel('faTurma',DATA.turmas,'Sem turma','');fillSel('faGrupo',DATA.grupos,'Sem grupo','');gi('mAlunoT').textContent='Novo Aluno';openM('mAluno'); }
 function editAluno(id){ const a=DATA.alunos.find(x=>x.id===id);if(!a)return;sv('faId',id);sv('faNome',a.nome);sv('faEmail',a.email||'');sv('faTel',a.tel||'');fillSel('faTurma',DATA.turmas,'Sem turma',a.turmaId||'');fillSel('faGrupo',DATA.grupos,'Sem grupo',a.grupoId||'');gi('mAlunoT').textContent='Editar Aluno';openM('mAluno'); }
 async function saveAluno(){ const nome=gv('faNome').trim();if(!nome){setErr('faNome','Obrigatório');return;} const id=gv('faId')||uid(),ex=DATA.alunos.find(a=>a.id===id)||{estrelas:0,presencas:0,faltas:0,historico:[]}; const obj={...ex,id,nome,email:gv('faEmail'),tel:gv('faTel'),turmaId:gv('faTurma'),grupoId:gv('faGrupo')}; const i=DATA.alunos.findIndex(a=>a.id===id);if(i>=0)DATA.alunos[i]=obj;else DATA.alunos.push(obj); await persist();closeM('mAluno');renderAlunos();toast('Aluno salvo!','ok'); }
 async function delAluno(id){ if(!await askConfirm({titulo:'Remover aluno?',msg:'O aluno e todo o histórico dele serão apagados. Essa ação não pode ser desfeita.',okTxt:'Remover'}))return; DATA.alunos=DATA.alunos.filter(a=>a.id!==id); await persist();renderAlunos(); }
+
+/* ── Importar alunos em lote ── */
+function openImport(){ sv('impTexto',''); fillSel('impTurma',DATA.turmas,'Sem turma',''); fillSel('impGrupo',DATA.grupos,'Sem grupo',''); const pv=gi('impPreview'); if(pv)pv.textContent=''; openM('mImport'); const ta=gi('impTexto'); if(ta) ta.oninput=()=>{ const n=ta.value.split('\n').map(x=>x.trim()).filter(Boolean).length; gi('impPreview').textContent = n?`${n} aluno(s) serão criados.`:''; }; }
+async function importarAlunos(){
+  const linhas = gv('impTexto').split('\n').map(x=>x.trim()).filter(Boolean);
+  if(!linhas.length){ setErr('impTexto','Cole pelo menos um nome.'); return; }
+  const tId=gv('impTurma'), gId=gv('impGrupo');
+  let criados=0;
+  linhas.forEach(nome=>{
+    DATA.alunos.push({ id:uid(), nome, email:'', tel:'', turmaId:tId, grupoId:gId, estrelas:0, presencas:0, faltas:0, historico:[] });
+    criados++;
+  });
+  await persist(); closeM('mImport'); renderAlunos();
+  toast(`✅ ${criados} aluno(s) criado(s)!`,'ok');
+}
+
+/* ── Perfil do aluno ── */
+function verAluno(id){
+  const a=DATA.alunos.find(x=>x.id===id); if(!a) return;
+  const t=DATA.turmas.find(x=>x.id===a.turmaId), g=DATA.grupos.find(x=>x.id===a.grupoId);
+  const tot=(a.presencas||0)+(a.faltas||0), pct=tot>0?Math.round(((a.presencas||0)/tot)*100):null;
+  const cor=g?.cor||'#3056D3';
+  const hist=[...(a.historico||[])].reverse().slice(0,15);
+  const rotulo=s=>{ if(s==='presente')return'✅ Presente'; if(s==='ausente')return'❌ Falta'; if(s==='atraso')return'⏰ Atraso'; if(s==='manual')return'✋ Ajuste manual'; if((s||'').startsWith('desafio'))return'🎯 '+s.replace('desafio:',''); return s||'—'; };
+  const posGeral=[...DATA.alunos].sort((x,y)=>(y.estrelas||0)-(x.estrelas||0)).findIndex(x=>x.id===id)+1;
+  gi('perfilBody').innerHTML=`
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
+      <div class="ar-av" style="width:56px;height:56px;font-size:18px;background:${cor}22;border-color:${cor}55;color:${cor}">${initials(a.nome)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:19px;letter-spacing:-.02em">${esc(a.nome)}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+          ${t?`<span class="badge blue">${esc(t.nome)}</span>`:'<span class="badge gray">Sem turma</span>'}
+          ${g?`<span class="badge" style="background:${cor}22;color:${cor};border-color:${cor}44">${esc(g.nome)}</span>`:'<span class="badge gray">Sem grupo</span>'}
+          <span class="badge gray">${a.id}</span>
+        </div>
+      </div>
+      ${isProf()?`<button class="btn outline sm" onclick="closeM('mPerfil');editAluno('${a.id}')">✏️ Editar</button>`:''}
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px">
+      <div class="stat-card" style="padding:12px"><div class="sc-label" style="margin-bottom:4px">⭐ Estrelas</div><div class="sc-val" style="font-size:22px">${a.estrelas||0}</div></div>
+      <div class="stat-card" style="padding:12px"><div class="sc-label" style="margin-bottom:4px">🏅 Posição</div><div class="sc-val" style="font-size:22px">${posGeral}º</div></div>
+      <div class="stat-card" style="padding:12px"><div class="sc-label" style="margin-bottom:4px">✅ Presenças</div><div class="sc-val" style="font-size:22px">${a.presencas||0}</div></div>
+      <div class="stat-card" style="padding:12px"><div class="sc-label" style="margin-bottom:4px">❌ Faltas</div><div class="sc-val" style="font-size:22px">${a.faltas||0}</div></div>
+    </div>
+    ${pct!==null?`<div style="margin-bottom:18px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t3);margin-bottom:5px"><span>Frequência</span><span>${pct}%</span></div><div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${pct>=75?'var(--green)':pct>=50?'var(--warn)':'var(--red)'}"></div></div></div>`:''}
+    ${(a.email||a.tel)?`<div class="card-item" style="margin-bottom:16px"><div class="ci-body"><div class="ci-sub">${a.email?'📧 '+esc(a.email):''}${a.email&&a.tel?' · ':''}${a.tel?'📱 '+esc(a.tel):''}</div></div></div>`:''}
+    <h4 style="font-family:'Space Grotesk',sans-serif;font-size:14px;margin-bottom:10px">Últimas atividades</h4>
+    ${hist.length?`<div style="max-height:240px;overflow-y:auto">${hist.map(h=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:13px"><span>${rotulo(h.status)}</span><span style="display:flex;gap:10px;align-items:center"><span style="color:var(--t3);font-size:12px">${fmtDate(h.data)}</span><b style="color:${(h.delta||0)>=0?'var(--green)':'var(--red)'}">${(h.delta||0)>=0?'+':''}${h.delta||0}⭐</b></span></div>`).join('')}</div>`:emptyHTML('📋','Nenhuma atividade ainda')}
+  `;
+  openM('mPerfil');
+}
 
 /* ════ FREQUÊNCIA ════ */
 function renderFrequencia(){ fillSel('freqTurma',DATA.turmas,'Todas as turmas',activeTurmaId||''); if(!gi('freqData').value)gi('freqData').value=today(); carregarFreqDoDia(); renderFreqList(); }
@@ -1670,6 +1783,35 @@ function renderRanking(){const sorted=[...DATA.alunos].sort((a,b)=>(b.estrelas||
 /* ════ RELATÓRIOS ════ */
 function gerarRelatorio(tipo){const tbl=(hs,rows)=>`<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:13px"><thead style="background:#f5f3ef"><tr>${hs.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;let body='';if(tipo==='geral'||tipo==='estrelas'){body+=`<h2>Ranking de Alunos</h2>`+tbl(['#','Nome','Turma','Grupo','⭐','Presenças','Faltas'],[...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0)).map((a,i)=>[i+1,a.nome,DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'—',DATA.grupos.find(g=>g.id===a.grupoId)?.nome||'—',a.estrelas||0,a.presencas||0,a.faltas||0]));body+=`<h2 style="margin-top:20px">Ranking de Grupos</h2>`+tbl(['#','Grupo','⭐ Total'],DATA.grupos.map((g,i)=>[i+1,g.nome,DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0)]).sort((a,b)=>b[2]-a[2]));}if(tipo==='frequencia')body+=tbl(['Nome','Turma','Presenças','Faltas','Freq%'],DATA.alunos.map(a=>{const tot=(a.presencas||0)+(a.faltas||0);return[a.nome,DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'—',a.presencas||0,a.faltas||0,tot>0?Math.round(((a.presencas||0)/tot)*100)+'%':'—'];}));if(tipo==='kahoot'){const min=DATA.config.kahootFreqMin||75,premios={1:'Barra de chocolate',2:'2 bombons',3:'1 bombom'};body+=tbl(['Aluno','Posição','Freq%','Data','Prêmio'],[...DATA.kahoot].sort((a,b)=>new Date(b.data)-new Date(a.data)).map(k=>[k.nomeAluno,k.pos+'º',k.freq+'%',fmtDate(k.data),(k.freq||0)>=min?premios[k.pos]||'—':'Não elegível']));}if(tipo==='metas')body+=tbl(['Meta','Responsável','Prazo','Status','Progresso'],DATA.metas.map(m=>[m.nome,m.resp||'—',fmtDate(m.prazo),m.status||'pendente',(m.prog||0)+'%']));if(!body)body='<p>Sem dados.</p>';const w=window.open('','_blank');if(w){w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>EduStar</title></head><body style="font-family:Arial,sans-serif;margin:40px"><h1>EduStar — ${tipo}</h1><p><small>Gerado em ${new Date().toLocaleString('pt-BR')}</small></p>${body}</body></html>`);w.document.close();setTimeout(()=>w.print(),400);}toast('Relatório gerado!','ok');}
 function exportCSV(){const rows=[['Nome','ID','Turma','Grupo','Estrelas','Presenças','Faltas','Freq%']];DATA.alunos.forEach(a=>{const tot=(a.presencas||0)+(a.faltas||0);rows.push([a.nome,a.id,DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'',DATA.grupos.find(g=>g.id===a.grupoId)?.nome||'',a.estrelas||0,a.presencas||0,a.faltas||0,tot>0?Math.round(((a.presencas||0)/tot)*100)+'%':'']);});const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');const u=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));Object.assign(document.createElement('a'),{href:u,download:'edustar.csv'}).click();URL.revokeObjectURL(u);toast('CSV exportado!','ok');}
+
+/* ── Backup completo (JSON) ── */
+function baixarBackup(){
+  if(!isProf()){ toast('Apenas professores podem baixar backup.','warn'); return; }
+  const backup = { _tipo:'edustar-backup', _versao:1, _data:new Date().toISOString(), escola:USER?.schoolNome||'', dados:DATA };
+  const nomeEscola=(USER?.schoolNome||'edustar').replace(/[^a-zA-Z0-9]/g,'-').toLowerCase();
+  const dataStr=new Date().toISOString().slice(0,10);
+  const u=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}));
+  Object.assign(document.createElement('a'),{href:u,download:`backup-${nomeEscola}-${dataStr}.json`}).click();
+  URL.revokeObjectURL(u);
+  toast('💾 Backup baixado! Guarde em local seguro.','ok');
+}
+async function restaurarBackup(ev){
+  if(!isProf()){ toast('Apenas professores podem restaurar backup.','warn'); return; }
+  const file=ev.target.files?.[0]; if(!file) return;
+  ev.target.value='';
+  try{
+    const txt=await file.text();
+    const parsed=JSON.parse(txt);
+    const dados = parsed.dados || parsed; // aceita backup nosso ou DATA cru
+    if(!dados || !Array.isArray(dados.alunos)){ toast('Arquivo inválido — não parece um backup do EduStar.','err'); return; }
+    const qtd=dados.alunos.length;
+    if(!await askConfirm({titulo:'Restaurar backup?',msg:`Isso vai SUBSTITUIR todos os dados atuais pelos do arquivo (${qtd} aluno(s)).\n\nOs dados de agora serão perdidos. Recomendado baixar um backup atual antes.\n\nDeseja continuar?`,okTxt:'Restaurar'})) return;
+    DATA = mergeData(dados);
+    await persist();
+    renderAll();
+    toast('✅ Backup restaurado com sucesso!','ok');
+  }catch(e){ toast('Erro ao ler o arquivo: '+e.message,'err'); }
+}
 
 /* ════ CONFIGURAÇÕES ════ */
 function renderConfig(){
