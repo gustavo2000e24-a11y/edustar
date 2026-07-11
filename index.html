@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- EduStar build 20260710-225648 -->
+<!-- EduStar build 20260711-194553 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -533,6 +533,7 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
         <button class="nav-item" id="navMembros" data-page="membros" onclick="navTo('membros')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg></span> Participantes</button>
         <button class="nav-item" data-page="relatorios" onclick="navTo('relatorios')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></span> Relatórios</button>
         <div class="sb-footer">
+          <button class="nav-item" id="navAdmin" data-page="admin" onclick="navTo('admin')" style="display:none"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></span> Administração</button>
           <button class="nav-item" data-page="configuracoes" onclick="navTo('configuracoes')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span> Configurações</button>
         </div>
       </div>
@@ -752,6 +753,29 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
         </div>
         <input type="file" id="restoreInput" accept="application/json,.json" style="display:none" onchange="restaurarBackup(event)">
         <p style="font-size:12px;color:var(--t3);margin-top:12px;line-height:1.6">💡 Dica: baixe um backup de vez em quando (ex: no fim de cada semana). Se algo der errado, você consegue recuperar tudo pelo arquivo salvo.</p></div>
+      </div>
+
+      <!-- ADMINISTRAÇÃO (só dono) -->
+      <div class="pg pb" id="pg-admin">
+        <div class="page-head"><div class="ph-l"><h2 class="ph-title">Administração de Contas</h2><p class="ph-sub">Contas que acessaram a escola — visível só para você (dono)</p></div></div>
+        <div style="background:var(--warn-l);border:1px solid #fde68a;color:var(--warn);border-radius:var(--rl);padding:12px 14px;font-size:13px;margin-bottom:18px;display:flex;gap:8px;align-items:flex-start">
+          <span style="font-size:16px">🔐</span>
+          <span>Esta área é exclusiva do dono da escola. Aqui você remove contas antigas ou de teste. Remover uma conta tira o acesso dela à escola — os registros de alunos (notas/estrelas) continuam intactos, pois são separados das contas de login.</span>
+        </div>
+        <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+          <div class="stat-card"><div class="sc-top"><span class="sc-ic sc-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span><div class="sc-label">Total de contas</div></div><div class="sc-val" id="adTotal">0</div></div>
+          <div class="stat-card"><div class="sc-top"><span class="sc-ic sc-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 8-4 8 4"/><path d="M18 5v17M6 5v17"/><path d="m18 10 4 2v8H2v-8l4-2"/></svg></span><div class="sc-label">Professores</div></div><div class="sc-val" id="adProfs">0</div></div>
+          <div class="stat-card"><div class="sc-top"><span class="sc-ic sc-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></span><div class="sc-label">Alunos</div></div><div class="sc-val" id="adAlunos">0</div></div>
+        </div>
+        <div class="page-toolbar">
+          <input id="adBusca" class="finput" style="max-width:240px;margin:0;flex:1" placeholder="Buscar por nome ou e-mail…" oninput="renderAdmin()">
+          <select id="adFiltro" class="finput" style="max-width:170px;margin:0" onchange="renderAdmin()">
+            <option value="">Todas as contas</option>
+            <option value="professor">Só professores</option>
+            <option value="aluno">Só alunos</option>
+          </select>
+        </div>
+        <div id="adList"></div>
       </div>
 
       <!-- CONFIGURAÇÕES -->
@@ -1258,6 +1282,9 @@ function applyRoleUI() {
   if (navM) navM.style.display = aluno ? 'none' : 'flex';
   const navH = gi('navHistorico');
   if (navH) navH.style.display = aluno ? 'none' : 'flex';
+  // Aba Administração só para o DONO da escola (quem criou)
+  const navA = gi('navAdmin');
+  if (navA) navA.style.display = USER?.isOwner ? 'flex' : 'none';
   // Aplica preferência de aparência local (todos os usuários)
   aplicarPrefUsuario();
   applyPagePermission();
@@ -1457,7 +1484,7 @@ document.addEventListener('keydown',e=>{
 });
 
 /* ════ NAV ════ */
-const PAGE_TITLES={dashboard:'Painel',turmas:'Turmas',grupos:'Grupos',alunos:'Alunos',frequencia:'Frequência',historico:'Histórico de Dias',estrelas:'Rota das Estrelas',desafios:'Desafios',kahoot:'Kahoot',recompensas:'Recompensas',metas:'Metas',swot:'Matriz SWOT',w2h:'5W2H',porques:'5 Porquês',ranking:'Ranking',sugestoes:'Sugestões',atestados:'Atestados',membros:'Participantes',relatorios:'Relatórios',configuracoes:'Configurações'};
+const PAGE_TITLES={dashboard:'Painel',turmas:'Turmas',grupos:'Grupos',alunos:'Alunos',frequencia:'Frequência',historico:'Histórico de Dias',estrelas:'Rota das Estrelas',desafios:'Desafios',kahoot:'Kahoot',recompensas:'Recompensas',metas:'Metas',swot:'Matriz SWOT',w2h:'5W2H',porques:'5 Porquês',ranking:'Ranking',sugestoes:'Sugestões',atestados:'Atestados',membros:'Participantes',admin:'Administração',relatorios:'Relatórios',configuracoes:'Configurações'};
 
 function navTo(page){
   activePage=page;
@@ -1472,7 +1499,7 @@ function navTo(page){
 function switchTab(tab){ document.querySelectorAll('.auth-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab)); document.querySelectorAll('.auth-panel').forEach(p=>p.style.display='none'); const p=gi('panel_'+tab); if(p)p.style.display='block'; clearErrs(); }
 
 function renderAll(){ applyTheme(); aplicarPrefUsuario(); document.querySelectorAll('.plat-nome').forEach(e=>e.textContent=DATA.config?.nomePlat||'EduStar'); document.title=DATA.config?.nomePlat||'EduStar'; renderPage(activePage); }
-function renderPage(p){ ({dashboard:renderDash,turmas:renderTurmas,grupos:renderGrupos,alunos:renderAlunos,frequencia:renderFrequencia,historico:renderHistorico,estrelas:renderEstrelas,desafios:renderDesafios,kahoot:renderKahoot,recompensas:renderRecomp,metas:renderMetas,swot:renderSwot,w2h:renderW2H,porques:renderPorques,ranking:renderRanking,sugestoes:renderSugestoes,atestados:renderAtestados,membros:renderMembros,configuracoes:renderConfig,relatorios:()=>{}})[p]?.(); }
+function renderPage(p){ ({dashboard:renderDash,turmas:renderTurmas,grupos:renderGrupos,alunos:renderAlunos,frequencia:renderFrequencia,historico:renderHistorico,estrelas:renderEstrelas,desafios:renderDesafios,kahoot:renderKahoot,recompensas:renderRecomp,metas:renderMetas,swot:renderSwot,w2h:renderW2H,porques:renderPorques,ranking:renderRanking,sugestoes:renderSugestoes,atestados:renderAtestados,membros:renderMembros,admin:renderAdmin,configuracoes:renderConfig,relatorios:()=>{}})[p]?.(); }
 
 /* ════ DASHBOARD ════ */
 function renderDash(){
@@ -1925,6 +1952,84 @@ function tempoRelativo(ms){
   const h = Math.floor(min/60);
   if (h < 24) return h+'h';
   return Math.floor(h/24)+' dia(s)';
+}
+
+/* ════ ADMINISTRAÇÃO DE CONTAS (só dono) ════ */
+function renderAdmin(){
+  if(!USER?.isOwner){ gi('adList').innerHTML=emptyHTML('🔐','Acesso restrito','Só o dono da escola pode ver esta área.'); return; }
+  desenharAdmin(DATA.membros||[]);
+  // Busca também os UIDs cadastrados na escola (inclui contas antigas sem detalhes)
+  if(SB_OK && sb && USER.schoolId){
+    sb.from('schools').select('members').eq('id', USER.schoolId).single().then(({data})=>{
+      if(!data || !Array.isArray(data.members)) return;
+      const membros = [...(DATA.membros||[])];
+      const conhecidos = new Set(membros.map(m=>m.uid));
+      data.members.forEach(uid=>{
+        if(!conhecidos.has(uid)){
+          membros.push({ uid, nome:'Conta antiga', email:'', role:'?', lastSeen:0, _semDetalhe:true });
+        }
+      });
+      desenharAdmin(membros);
+    }).catch(()=>{});
+  }
+}
+
+function desenharAdmin(membros){
+  if(!gi('adList')) return;
+  const profs = membros.filter(m=>m.role==='professor').length;
+  const alunos = membros.filter(m=>m.role==='aluno').length;
+  if(gi('adTotal')) gi('adTotal').textContent=membros.length;
+  if(gi('adProfs')) gi('adProfs').textContent=profs;
+  if(gi('adAlunos')) gi('adAlunos').textContent=alunos;
+  const q=(gv('adBusca')||'').toLowerCase(), filtro=gv('adFiltro');
+  let list=[...membros];
+  if(q) list=list.filter(m=>(m.nome||'').toLowerCase().includes(q)||(m.email||'').toLowerCase().includes(q)||(m.uid||'').toLowerCase().includes(q));
+  if(filtro) list=list.filter(m=>filtro==='aluno'?m.role==='aluno':m.role==='professor');
+  list.sort((a,b)=>(b.lastSeen||0)-(a.lastSeen||0));
+  const agora=Date.now();
+  gi('adList').innerHTML = list.length ? list.map(m=>{
+    const sou = m.uid===USER.uid;
+    const quando = m._semDetalhe ? 'entrou antes do registro de presença' : (m.lastSeen ? (agora-m.lastSeen<2*60*1000?'online agora':'visto há '+tempoRelativo(agora-m.lastSeen)) : 'sem registro');
+    const papel = m.role==='aluno'?'<span class="badge blue">🎓 Aluno</span>':m.role==='professor'?'<span class="badge green">👨‍🏫 Professor</span>':'<span class="badge gray">Conta</span>';
+    return `<div class="aluno-row">
+      <div class="ar-av">${m._semDetalhe?'?':initials(m.nome)}</div>
+      <div class="ar-body">
+        <div class="ar-nome">${esc(m.nome)} ${sou?'<span class="badge green">Você</span>':''}</div>
+        <div class="ar-meta">
+          ${papel}
+          ${m.email?`<span style="font-size:12px;color:var(--t3)">${esc(m.email)}</span>`:''}
+          <span style="font-size:12px;color:var(--t3)">· ${quando}</span>
+          <span style="font-size:11px;color:var(--t4);font-family:monospace">${esc((m.uid||'').slice(0,10))}…</span>
+        </div>
+      </div>
+      <div class="ar-actions">
+        ${sou?'<span style="font-size:12px;color:var(--t4);padding:4px 8px">conta atual</span>':`<button class="ibtn red" onclick="removerConta('${m.uid}')" title="Remover esta conta">🗑 Remover</button>`}
+      </div>
+    </div>`;
+  }).join('') : emptyHTML('👥','Nenhuma conta encontrada','As contas aparecem aqui conforme as pessoas entram na escola.');
+}
+
+async function removerConta(uidAlvo){
+  if(!USER?.isOwner){ toast('Apenas o dono pode remover contas.','warn'); return; }
+  if(uidAlvo===USER.uid){ toast('Você não pode remover a sua própria conta aqui.','warn'); return; }
+  const m = (DATA.membros||[]).find(x=>x.uid===uidAlvo);
+  const nome = m?.nome || 'esta conta';
+  if(!await askConfirm({titulo:'Remover conta?',msg:`A conta de "${nome}" será removida da escola e perderá o acesso.\n\nOs registros de alunos (notas e estrelas) não são afetados. Essa ação não pode ser desfeita.`,okTxt:'Remover conta'})) return;
+  // Remove da lista de membros (no payload)
+  DATA.membros = (DATA.membros||[]).filter(x=>x.uid!==uidAlvo);
+  // Remove do array de membros da escola no Supabase (tira o acesso)
+  if(SB_OK && sb && USER.schoolId){
+    try{
+      const { data } = await sb.from('schools').select('members').eq('id', USER.schoolId).single();
+      if(data && Array.isArray(data.members)){
+        const novos = data.members.filter(u=>u!==uidAlvo);
+        await sb.from('schools').update({ members: novos }).eq('id', USER.schoolId);
+      }
+    }catch(e){ /* segue mesmo se falhar o update do array */ }
+  }
+  await persist();
+  renderAdmin();
+  toast('🗑 Conta removida da escola.','ok');
 }
 
 /* ════ UPLOAD DE ARQUIVOS ════ */
