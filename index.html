@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- EduStar build 20260711-202124 -->
+<!-- EduStar build 20260711-200611 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -28,23 +28,6 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 .ei{width:1.05em;height:1.05em;vertical-align:-.15em;display:inline-block;flex-shrink:0}
-/* Gamificação */
-.nivel-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;border:1px solid;letter-spacing:.01em}
-.conq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
-.conq{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:12px 8px;border:1px solid var(--border);border-radius:var(--rl);background:var(--surface2);transition:transform var(--tr)}
-.conq.on{background:var(--surface)}.conq.on:hover{transform:translateY(-2px)}
-.conq.off{opacity:.4;filter:grayscale(1)}
-.conq-ic{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center}
-.conq-ic svg{width:20px;height:20px}
-.conq-nome{font-size:11px;font-weight:700;line-height:1.2}
-.conq-desc{font-size:9.5px;color:var(--t3);line-height:1.2}
-.nivel-card{display:flex;align-items:center;gap:14px;padding:16px;border:1px solid var(--border);border-radius:var(--rl);background:var(--surface2);margin-bottom:16px}
-.nivel-ring{width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:50%;border:3px solid}
-.nivel-ring svg{width:26px;height:26px}
-.nivel-prog{flex:1;min-width:0}
-.star-pop{position:fixed;z-index:9999;pointer-events:none;width:32px;height:32px;animation:starPop .9s ease-out forwards}
-.star-pop svg{width:32px;height:32px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.25))}
-@keyframes starPop{0%{transform:translateY(0) scale(.4);opacity:0}25%{transform:translateY(-14px) scale(1.25);opacity:1}100%{transform:translateY(-52px) scale(.9);opacity:0}}
 body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
 ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}::-webkit-scrollbar-track{background:transparent}
 input,button,select,textarea{font-family:inherit;font-size:inherit}button{cursor:pointer}a{color:var(--primary)}
@@ -850,7 +833,7 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
             <h4><svg class="ei" viewBox="0 0 24 24" fill="#E5A93D"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg> Pontuação por Frequência</h4>
             <div class="cfg-row"><div class="cfg-label"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#15803D"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> Presença<small>Estrelas por presença</small></div><input id="cfgPresenca" type="number" class="finput cfg-val"></div>
             <div class="cfg-row"><div class="cfg-label"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-2M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3M3 4h8"/></svg> Participação</div><input id="cfgPartic" type="number" class="finput cfg-val"></div>
-            <div class="cfg-row"><div class="cfg-label"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M5 3 2 6M22 6l-3-3M6.4 18.8 4 21M17.6 18.8 20 21"/></svg> Atraso<small>Pode ser negativo</small></div><input id="cfgAtraso" type="number" class="finput cfg-val"></div>
+            <div class="cfg-row"><div class="cfg-label">⏰ Atraso<small>Pode ser negativo</small></div><input id="cfgAtraso" type="number" class="finput cfg-val"></div>
             <div class="cfg-row"><div class="cfg-label"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#DC2626"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> Falta<small>Pode ser negativo</small></div><input id="cfgFalta" type="number" class="finput cfg-val"></div>
             <div class="cfg-row"><div class="cfg-label"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> Bônus sala 100%</div><input id="cfgBonus100" type="number" class="finput cfg-val"></div>
           </div>
@@ -1458,90 +1441,6 @@ function gv(id)     { return gi(id)?.value||''; }
 function sv(id,v)   { const e=gi(id); if(e) e.value=v??''; }
 function esc(s)     { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function initials(n){ return (n||'?').split(' ').slice(0,2).map(w=>(w[0]||'').toUpperCase()).join(''); }
-
-/* ════ GAMIFICAÇÃO ════ */
-const NIVEIS = [
-  { nome:'Iniciante', min:0,   cor:'#94A3B8', ic:'seedling' },
-  { nome:'Bronze',    min:25,  cor:'#C08457', ic:'medal' },
-  { nome:'Prata',     min:75,  cor:'#94A3B8', ic:'medal' },
-  { nome:'Ouro',      min:150, cor:'#E5A93D', ic:'medal' },
-  { nome:'Diamante',  min:300, cor:'#22D3EE', ic:'gem' },
-  { nome:'Mestre',    min:500, cor:'#A855F7', ic:'crown' }
-];
-function nivelDoAluno(estrelas){
-  estrelas = estrelas||0;
-  let idx = 0;
-  for(let i=0;i<NIVEIS.length;i++){ if(estrelas>=NIVEIS[i].min) idx=i; }
-  const atual = NIVEIS[idx], prox = NIVEIS[idx+1]||null;
-  const base = atual.min, teto = prox? prox.min : atual.min;
-  const pct = prox ? Math.round(((estrelas-base)/(teto-base))*100) : 100;
-  return { ...atual, indice:idx+1, prox, pct, faltam: prox? (teto-estrelas):0 };
-}
-const _nivelIcons = {
-  seedling:'<path d="M7 20h10M10 20c5.5-2.5.8-6.4 3-10M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8zM14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/>',
-  medal:'<circle cx="12" cy="8" r="6"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1"/>',
-  gem:'<path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6M2 9h20"/>',
-  crown:'<path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zM5 20h14"/>'
-};
-function nivelBadge(estrelas, mini){
-  const n = nivelDoAluno(estrelas);
-  const svg = `<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="${n.cor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${_nivelIcons[n.ic]}</svg>`;
-  if(mini) return `<span class="nivel-badge" style="background:${n.cor}1f;color:${n.cor};border-color:${n.cor}40">${svg} ${n.nome}</span>`;
-  return svg;
-}
-
-/* Conquistas do aluno (medalhas desbloqueáveis) */
-function conquistasDoAluno(a){
-  const est=a.estrelas||0, pres=a.presencas||0, falt=a.faltas||0, seq=sequenciaPresenca(a);
-  const defs = [
-    { id:'primeira', nome:'Primeira Estrela', desc:'Ganhou sua 1ª estrela', cor:'#E5A93D', ok:est>=1, ic:'star' },
-    { id:'dedicado', nome:'Dedicado', desc:'50 estrelas conquistadas', cor:'#3056D3', ok:est>=50, ic:'star' },
-    { id:'brilhante', nome:'Estrela Brilhante', desc:'100 estrelas conquistadas', cor:'#7C3AED', ok:est>=100, ic:'star' },
-    { id:'lenda', nome:'Lenda', desc:'250 estrelas conquistadas', cor:'#A855F7', ok:est>=250, ic:'crown' },
-    { id:'presente', nome:'Presente', desc:'10 presenças registradas', cor:'#15803D', ok:pres>=10, ic:'check' },
-    { id:'assiduo', nome:'Assíduo', desc:'25 presenças registradas', cor:'#0891B2', ok:pres>=25, ic:'check' },
-    { id:'sequencia5', nome:'Em Chamas', desc:'5 presenças seguidas', cor:'#F97316', ok:seq>=5, ic:'flame' },
-    { id:'sequencia10', nome:'Imparável', desc:'10 presenças seguidas', cor:'#DC2626', ok:seq>=10, ic:'flame' },
-    { id:'perfeito', nome:'Frequência Perfeita', desc:'10+ presenças, 0 faltas', cor:'#15803D', ok:pres>=10&&falt===0, ic:'trophy' }
-  ];
-  return defs;
-}
-const _conqIcons = {
-  star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/>',
-  crown:'<path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zM5 20h14"/>',
-  check:'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>',
-  flame:'<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
-  trophy:'<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.7V17c0 .6-.5 1-.97 1.2C7.85 18.8 7 20.2 7 22M14 14.7V17c0 .6.5 1 .97 1.2C16.15 18.8 17 20.2 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z"/>'
-};
-
-/* Sequência de presenças seguidas (dias registrados sem falta no fim) */
-function sequenciaPresenca(a){
-  if(!a.historico) return 0;
-  const freq = a.historico.filter(h=>['presente','atraso','ausente'].includes(h.status))
-                          .slice().sort((x,y)=> (x.data||'').localeCompare(y.data||''));
-  let seq=0;
-  for(let i=freq.length-1;i>=0;i--){
-    if(freq[i].status==='presente'||freq[i].status==='atraso') seq++;
-    else break;
-  }
-  return seq;
-}
-
-/* Animação ao ganhar estrela */
-function animarEstrela(el, positivo){
-  try{
-    const r = (el||document.body).getBoundingClientRect();
-    const s = document.createElement('div');
-    s.className = 'star-pop';
-    s.innerHTML = positivo
-      ? '<svg viewBox="0 0 24 24" fill="#E5A93D"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg>'
-      : '<svg viewBox="0 0 24 24" fill="#94A3B8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg>';
-    s.style.left = (r.left + r.width/2 - 16) + 'px';
-    s.style.top  = (r.top - 6) + 'px';
-    document.body.appendChild(s);
-    setTimeout(()=>s.remove(), 900);
-  }catch(e){}
-}
 function today()    { return new Date().toISOString().slice(0,10); }
 function fmtDate(d) { return d?new Date(d).toLocaleDateString('pt-BR'):'—'; }
 function setErr(id,m){ const e=gi('err_'+id); if(e){e.textContent=m;e.style.display='block';} gi(id)?.classList.add('inp-err'); }
@@ -1643,7 +1542,7 @@ async function saveGrupo(){ const nome=gv('fgNome').trim();if(!nome){setErr('fgN
 async function delGrupo(id){ if(!await askConfirm({titulo:'Remover grupo?',msg:'O grupo será removido. Os alunos dele ficam sem grupo, mas não são apagados.',okTxt:'Remover'}))return; DATA.grupos=DATA.grupos.filter(g=>g.id!==id); DATA.alunos.forEach(a=>{if(a.grupoId===id)a.grupoId='';}); await persist();renderGrupos(); }
 
 /* ════ ALUNOS ════ */
-function renderAlunos(){ const q=gv('sAl').toLowerCase(),tF=gv('fAlT'),gF=gv('fAlG'); let list=DATA.alunos; if(q)list=list.filter(a=>a.nome.toLowerCase().includes(q)||a.id.toLowerCase().includes(q)); if(tF)list=list.filter(a=>a.turmaId===tF); if(gF)list=list.filter(a=>a.grupoId===gF); fillSel('fAlT',DATA.turmas,'Todas as turmas',tF); fillSel('fAlG',DATA.grupos,'Todos os grupos',gF); gi('alunosList').innerHTML=list.map(a=>{const t=DATA.turmas.find(x=>x.id===a.turmaId),g=DATA.grupos.find(x=>x.id===a.grupoId),tot=(a.presencas||0)+(a.faltas||0),pct=tot>0?Math.round(((a.presencas||0)/tot)*100):null;return`<div class="aluno-row"><div class="ar-av" onclick="verAluno('${a.id}')" style="cursor:pointer${g?`;background:${g.cor}22;border-color:${g.cor}55;color:${g.cor}`:''}">${initials(a.nome)}</div><div class="ar-body" onclick="verAluno('${a.id}')" style="cursor:pointer"><div class="ar-nome">${esc(a.nome)} <span class="badge gray">${a.id}</span></div><div class="ar-meta">${t?`<span class="badge blue">${esc(t.nome)}</span>`:''} ${g?`<span class="badge" style="background:${g.cor}22;color:${g.cor};border-color:${g.cor}44">${esc(g.nome)}</span>`:''} ${nivelBadge(a.estrelas,true)} ${pct!==null?`<span class="badge ${pct>=75?'green':pct>=50?'warn':'red'}">${pct}%</span>`:''}</div></div><div class="ar-est"><svg class="ei" viewBox="0 0 24 24" fill="#E5A93D"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg> ${a.estrelas||0}</div><div class="ar-actions"><button class="ibtn" onclick="verAluno('${a.id}')" title="Ver perfil"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>️</button><button class="ibtn" onclick="editAluno('${a.id}')" title="Editar"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>️</button><button class="ibtn red" onclick="delAluno('${a.id}')" title="Excluir"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></div></div>`;}).join('')||emptyHTML('<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>','Nenhum aluno encontrado'); }
+function renderAlunos(){ const q=gv('sAl').toLowerCase(),tF=gv('fAlT'),gF=gv('fAlG'); let list=DATA.alunos; if(q)list=list.filter(a=>a.nome.toLowerCase().includes(q)||a.id.toLowerCase().includes(q)); if(tF)list=list.filter(a=>a.turmaId===tF); if(gF)list=list.filter(a=>a.grupoId===gF); fillSel('fAlT',DATA.turmas,'Todas as turmas',tF); fillSel('fAlG',DATA.grupos,'Todos os grupos',gF); gi('alunosList').innerHTML=list.map(a=>{const t=DATA.turmas.find(x=>x.id===a.turmaId),g=DATA.grupos.find(x=>x.id===a.grupoId),tot=(a.presencas||0)+(a.faltas||0),pct=tot>0?Math.round(((a.presencas||0)/tot)*100):null;return`<div class="aluno-row"><div class="ar-av" onclick="verAluno('${a.id}')" style="cursor:pointer${g?`;background:${g.cor}22;border-color:${g.cor}55;color:${g.cor}`:''}">${initials(a.nome)}</div><div class="ar-body" onclick="verAluno('${a.id}')" style="cursor:pointer"><div class="ar-nome">${esc(a.nome)} <span class="badge gray">${a.id}</span></div><div class="ar-meta">${t?`<span class="badge blue">${esc(t.nome)}</span>`:''} ${g?`<span class="badge" style="background:${g.cor}22;color:${g.cor};border-color:${g.cor}44">${esc(g.nome)}</span>`:''} ${pct!==null?`<span class="badge ${pct>=75?'green':pct>=50?'warn':'red'}">${pct}%</span>`:''}</div></div><div class="ar-est"><svg class="ei" viewBox="0 0 24 24" fill="#E5A93D"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg> ${a.estrelas||0}</div><div class="ar-actions"><button class="ibtn" onclick="verAluno('${a.id}')" title="Ver perfil"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>️</button><button class="ibtn" onclick="editAluno('${a.id}')" title="Editar"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>️</button><button class="ibtn red" onclick="delAluno('${a.id}')" title="Excluir"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></div></div>`;}).join('')||emptyHTML('<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>','Nenhum aluno encontrado'); }
 function openNewAluno(){ sv('faId','');sv('faNome','');sv('faEmail','');sv('faTel','');fillSel('faTurma',DATA.turmas,'Sem turma','');fillSel('faGrupo',DATA.grupos,'Sem grupo','');gi('mAlunoT').textContent='Novo Aluno';openM('mAluno'); }
 function editAluno(id){ const a=DATA.alunos.find(x=>x.id===id);if(!a)return;sv('faId',id);sv('faNome',a.nome);sv('faEmail',a.email||'');sv('faTel',a.tel||'');fillSel('faTurma',DATA.turmas,'Sem turma',a.turmaId||'');fillSel('faGrupo',DATA.grupos,'Sem grupo',a.grupoId||'');gi('mAlunoT').textContent='Editar Aluno';openM('mAluno'); }
 async function saveAluno(){ const nome=gv('faNome').trim();if(!nome){setErr('faNome','Obrigatório');return;} const id=gv('faId')||uid(),ex=DATA.alunos.find(a=>a.id===id)||{estrelas:0,presencas:0,faltas:0,historico:[]}; const obj={...ex,id,nome,email:gv('faEmail'),tel:gv('faTel'),turmaId:gv('faTurma'),grupoId:gv('faGrupo')}; const i=DATA.alunos.findIndex(a=>a.id===id);if(i>=0)DATA.alunos[i]=obj;else DATA.alunos.push(obj); await persist();closeM('mAluno');renderAlunos();toast('Aluno salvo!','ok'); }
@@ -1671,47 +1570,28 @@ function verAluno(id){
   const tot=(a.presencas||0)+(a.faltas||0), pct=tot>0?Math.round(((a.presencas||0)/tot)*100):null;
   const cor=g?.cor||'#3056D3';
   const hist=[...(a.historico||[])].reverse().slice(0,15);
-  const rotulo=s=>{ if(s==='presente')return'<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> Presente'; if(s==='ausente')return'<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> Falta'; if(s==='atraso')return'<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="#B45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Atraso'; if(s==='manual')return'<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2m0 0V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2m0 0V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v6m8-8v6m-8 0a6 6 0 0 0 6 6h1a6 6 0 0 0 5-2.7L18 11"/></svg> Ajuste manual'; if((s||'').startsWith('desafio'))return'<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> '+s.replace('desafio:',''); return s||'—'; };
+  const rotulo=s=>{ if(s==='presente')return'<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#15803D"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> Presente'; if(s==='ausente')return'<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#DC2626"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> Falta'; if(s==='atraso')return'⏰ Atraso'; if(s==='manual')return'<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2m0 0V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2m0 0V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v6m8-8v6m-8 0a6 6 0 0 0 6 6h1a6 6 0 0 0 5-2.7L18 11"/></svg> Ajuste manual'; if((s||'').startsWith('desafio'))return'<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> '+s.replace('desafio:',''); return s||'—'; };
   const posGeral=[...DATA.alunos].sort((x,y)=>(y.estrelas||0)-(x.estrelas||0)).findIndex(x=>x.id===id)+1;
-  const nv=nivelDoAluno(a.estrelas), conquistas=conquistasDoAluno(a), nConq=conquistas.filter(c=>c.ok).length, seq=sequenciaPresenca(a);
   gi('perfilBody').innerHTML=`
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
       <div class="ar-av" style="width:56px;height:56px;font-size:18px;background:${cor}22;border-color:${cor}55;color:${cor}">${initials(a.nome)}</div>
       <div style="flex:1;min-width:0">
         <div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:19px;letter-spacing:-.02em">${esc(a.nome)}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-          ${nivelBadge(a.estrelas, true)}
           ${t?`<span class="badge blue">${esc(t.nome)}</span>`:'<span class="badge gray">Sem turma</span>'}
           ${g?`<span class="badge" style="background:${cor}22;color:${cor};border-color:${cor}44">${esc(g.nome)}</span>`:'<span class="badge gray">Sem grupo</span>'}
+          <span class="badge gray">${a.id}</span>
         </div>
       </div>
-      ${isProf()?`<button class="btn outline sm" onclick="closeM('mPerfil');editAluno('${a.id}')"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> Editar</button>`:''}
-    </div>
-    <div class="nivel-card">
-      <div class="nivel-ring" style="border-color:${nv.cor};color:${nv.cor}">${nivelBadge(a.estrelas)}</div>
-      <div class="nivel-prog">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
-          <span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;color:${nv.cor}">Nível ${nv.indice} · ${nv.nome}</span>
-          <span style="font-size:12px;color:var(--t3)">${nv.prox?`faltam ${nv.faltam} <svg class="ei" viewBox="0 0 24 24" fill="#E5A93D"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg> p/ ${nv.prox.nome}`:'nível máximo!'}</span>
-        </div>
-        <div class="prog-bar"><div class="prog-fill" style="width:${nv.pct}%;background:${nv.cor}"></div></div>
-      </div>
+      ${isProf()?`<button class="btn outline sm" onclick="closeM('mPerfil');editAluno('${a.id}')"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>️ Editar</button>`:''}
     </div>
     <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px">
       <div class="stat-card" style="padding:12px"><div class="sc-label" style="margin-bottom:4px"><svg class="ei" viewBox="0 0 24 24" fill="#E5A93D"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg> Estrelas</div><div class="sc-val" style="font-size:22px">${a.estrelas||0}</div></div>
       <div class="stat-card" style="padding:12px"><div class="sc-label" style="margin-bottom:4px"><svg class="ei" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="6" fill="#E5A93D"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1" fill="#E5A93D"/></svg> Posição</div><div class="sc-val" style="font-size:22px">${posGeral}º</div></div>
-      <div class="stat-card" style="padding:12px"><div class="sc-label" style="margin-bottom:4px"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg> Sequência</div><div class="sc-val" style="font-size:22px">${seq}</div></div>
-      <div class="stat-card" style="padding:12px"><div class="sc-label" style="margin-bottom:4px"><svg class="ei" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="6" fill="#7C3AED"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1" fill="#7C3AED"/></svg> Medalhas</div><div class="sc-val" style="font-size:22px">${nConq}/${conquistas.length}</div></div>
-    </div>
-    <div class="stats-grid" style="grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:18px">
-      <div class="stat-card" style="padding:12px"><div class="sc-label" style="margin-bottom:4px"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> Presenças</div><div class="sc-val" style="font-size:22px">${a.presencas||0}</div></div>
-      <div class="stat-card" style="padding:12px"><div class="sc-label" style="margin-bottom:4px"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> Faltas</div><div class="sc-val" style="font-size:22px">${a.faltas||0}</div></div>
+      <div class="stat-card" style="padding:12px"><div class="sc-label" style="margin-bottom:4px"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#15803D"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> Presenças</div><div class="sc-val" style="font-size:22px">${a.presencas||0}</div></div>
+      <div class="stat-card" style="padding:12px"><div class="sc-label" style="margin-bottom:4px"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#DC2626"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> Faltas</div><div class="sc-val" style="font-size:22px">${a.faltas||0}</div></div>
     </div>
     ${pct!==null?`<div style="margin-bottom:18px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t3);margin-bottom:5px"><span>Frequência</span><span>${pct}%</span></div><div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${pct>=75?'var(--green)':pct>=50?'var(--warn)':'var(--red)'}"></div></div></div>`:''}
-    <h4 style="font-family:'Space Grotesk',sans-serif;font-size:14px;margin-bottom:10px">Conquistas <span style="font-weight:400;color:var(--t3);font-size:12px">· ${nConq} de ${conquistas.length}</span></h4>
-    <div class="conq-grid" style="margin-bottom:18px">
-      ${conquistas.map(c=>`<div class="conq ${c.ok?'on':'off'}" title="${c.desc}"><div class="conq-ic" style="background:${c.ok?c.cor+'22':'var(--border)'}"><svg viewBox="0 0 24 24" fill="none" stroke="${c.ok?c.cor:'var(--t4)'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px">${_conqIcons[c.ic]}</svg></div><div class="conq-nome">${c.nome}</div><div class="conq-desc">${c.desc}</div></div>`).join('')}
-    </div>
     ${(a.email||a.tel)?`<div class="card-item" style="margin-bottom:16px"><div class="ci-body"><div class="ci-sub">${a.email?'<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg> '+esc(a.email):''}${a.email&&a.tel?' · ':''}${a.tel?'<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg> '+esc(a.tel):''}</div></div></div>`:''}
     <h4 style="font-family:'Space Grotesk',sans-serif;font-size:14px;margin-bottom:10px">Últimas atividades</h4>
     ${hist.length?`<div style="max-height:240px;overflow-y:auto">${hist.map(h=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:13px"><span>${rotulo(h.status)}</span><span style="display:flex;gap:10px;align-items:center"><span style="color:var(--t3);font-size:12px">${fmtDate(h.data)}</span><b style="color:${(h.delta||0)>=0?'var(--green)':'var(--red)'}">${(h.delta||0)>=0?'+':''}${h.delta||0}<svg class="ei" viewBox="0 0 24 24" fill="#E5A93D"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg></b></span></div>`).join('')}</div>`:emptyHTML('<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>','Nenhuma atividade ainda')}
@@ -1731,13 +1611,13 @@ function carregarFreqDoDia(){
   if(reg) Object.assign(freqState, reg.registros);
 }
 
-function renderFreqList(){ const tId=gv('freqTurma');activeTurmaId=tId; let list=DATA.alunos;if(tId)list=list.filter(a=>a.turmaId===tId); if(!list.length){gi('freqList').innerHTML=emptyHTML('<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>','Nenhum aluno');gi('freqSummary').innerHTML='';return;} list.forEach(a=>{if(!freqState[a.id])freqState[a.id]='presente';}); atualizarFreqSummary(list); gi('freqList').innerHTML=list.map(a=>`<div class="freq-row" id="fr_${a.id}"><div class="fr-nome">${esc(a.nome)}</div><div class="freq-btns"><button class="fq-btn presente ${freqState[a.id]==='presente'?'active':''}" onclick="setFq('${a.id}','presente')"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#15803D"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> Presente</button><button class="fq-btn atraso ${freqState[a.id]==='atraso'?'active':''}" onclick="setFq('${a.id}','atraso')"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M5 3 2 6M22 6l-3-3M6.4 18.8 4 21M17.6 18.8 20 21"/></svg> Atraso</button><button class="fq-btn ausente ${freqState[a.id]==='ausente'?'active':''}" onclick="setFq('${a.id}','ausente')"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#DC2626"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> Falta</button></div></div>`).join(''); }
+function renderFreqList(){ const tId=gv('freqTurma');activeTurmaId=tId; let list=DATA.alunos;if(tId)list=list.filter(a=>a.turmaId===tId); if(!list.length){gi('freqList').innerHTML=emptyHTML('<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>','Nenhum aluno');gi('freqSummary').innerHTML='';return;} list.forEach(a=>{if(!freqState[a.id])freqState[a.id]='presente';}); atualizarFreqSummary(list); gi('freqList').innerHTML=list.map(a=>`<div class="freq-row" id="fr_${a.id}"><div class="fr-nome">${esc(a.nome)}</div><div class="freq-btns"><button class="fq-btn presente ${freqState[a.id]==='presente'?'active':''}" onclick="setFq('${a.id}','presente')"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#15803D"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> Presente</button><button class="fq-btn atraso ${freqState[a.id]==='atraso'?'active':''}" onclick="setFq('${a.id}','atraso')">⏰ Atraso</button><button class="fq-btn ausente ${freqState[a.id]==='ausente'?'active':''}" onclick="setFq('${a.id}','ausente')"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#DC2626"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> Falta</button></div></div>`).join(''); }
 
 function atualizarFreqSummary(list){
   const p=list.filter(a=>freqState[a.id]==='presente').length,au=list.filter(a=>freqState[a.id]==='ausente').length,at=list.filter(a=>freqState[a.id]==='atraso').length;
   const data=gv('freqData')||today(), tId=gv('freqTurma');
   const jaSalvo=(DATA.freqRegistros||[]).some(r=>r.data===data&&(r.turmaId||'')===(tId||''));
-  gi('freqSummary').innerHTML=`<span><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#15803D"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> <b>${p}</b> presentes</span><span><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#DC2626"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> <b>${au}</b> faltas</span><span><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M5 3 2 6M22 6l-3-3M6.4 18.8 4 21M17.6 18.8 20 21"/></svg> <b>${at}</b> atrasos</span>${list.every(a=>freqState[a.id]==='presente')?'<span class="badge green"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> Turma completa — bônus!</span>':''}${jaSalvo?'<span class="badge blue"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg> Dia já salvo — salvar de novo atualiza</span>':''}`;
+  gi('freqSummary').innerHTML=`<span><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#15803D"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> <b>${p}</b> presentes</span><span><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#DC2626"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> <b>${au}</b> faltas</span><span>⏰ <b>${at}</b> atrasos</span>${list.every(a=>freqState[a.id]==='presente')?'<span class="badge green"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> Turma completa — bônus!</span>':''}${jaSalvo?'<span class="badge blue"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg> Dia já salvo — salvar de novo atualiza</span>':''}`;
 }
 
 function setFq(id,val){ freqState[id]=val; const row=gi('fr_'+id);if(!row)return; row.querySelectorAll('.fq-btn').forEach(b=>b.classList.remove('active')); row.querySelector(`.fq-btn.${val}`)?.classList.add('active'); const list=DATA.alunos.filter(a=>!activeTurmaId||a.turmaId===activeTurmaId); atualizarFreqSummary(list); }
@@ -1830,7 +1710,7 @@ function renderHistorico(){
         <div class="ci-title">${fmtDate(r.data)} ${turma?`· ${esc(turma.nome)}`:'· Todas as turmas'}</div>
         <div class="ci-sub" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:5px">
           <span class="badge green"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#15803D"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> ${p} presentes</span>
-          <span class="badge warn"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M5 3 2 6M22 6l-3-3M6.4 18.8 4 21M17.6 18.8 20 21"/></svg> ${at} atrasos</span>
+          <span class="badge warn">⏰ ${at} atrasos</span>
           <span class="badge red"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#DC2626"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> ${au} faltas</span>
           <span class="badge gray"><svg class="ei" viewBox="0 0 24 24" fill="#E5A93D"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg> ${estrelas>=0?'+':''}${estrelas} no dia</span>
         </div>
@@ -1874,7 +1754,7 @@ async function excluirDiaFreq(id){
 
 /* ════ ESTRELAS ════ */
 function renderEstrelas(){ gi('estGrupos').innerHTML=[...DATA.grupos].sort((a,b)=>{const ea=DATA.alunos.filter(x=>x.grupoId===a.id).reduce((s,x)=>s+(x.estrelas||0),0),eb=DATA.alunos.filter(x=>x.grupoId===b.id).reduce((s,x)=>s+(x.estrelas||0),0);return eb-ea;}).map((g,i)=>{const est=DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0);return`<div class="grupo-card" style="border-top:3px solid ${g.cor||'#C9953A'}"><div class="gc-top"><div class="gc-dot" style="background:${g.cor||'#C9953A'}"></div><span class="gc-nome">${esc(g.nome)}</span></div><div class="gc-pts"><svg class="ei" viewBox="0 0 24 24" fill="#E5A93D"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg> ${est}</div><div class="gc-sub">${['<svg class="ei" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="6" fill="#E5A93D"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1" fill="#E5A93D"/></svg>','<svg class="ei" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="6" fill="#A8B3C5"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1" fill="#A8B3C5"/></svg>','<svg class="ei" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="6" fill="#C08457"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1" fill="#C08457"/></svg>'][i]||'#'+(i+1)} lugar</div></div>`;}).join('')||emptyHTML('<svg class="ei" viewBox="0 0 24 24" fill="#E5A93D"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.7V17c0 .6-.5 1-.97 1.2C7.85 18.8 7 20.2 7 22M14 14.7V17c0 .6.5 1 .97 1.2C16.15 18.8 17 20.2 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>','Nenhum grupo ainda'); const sorted=[...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0)),max=sorted[0]?.estrelas||1; gi('estIndiv').innerHTML=sorted.map((a,i)=>{const g=DATA.grupos.find(x=>x.id===a.grupoId);return`<div class="aluno-row"><span class="rk-pos-lg">${['<svg class="ei" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="6" fill="#E5A93D"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1" fill="#E5A93D"/></svg>','<svg class="ei" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="6" fill="#A8B3C5"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1" fill="#A8B3C5"/></svg>','<svg class="ei" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="6" fill="#C08457"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1" fill="#C08457"/></svg>'][i]||`<span class="rk-n">${i+1}</span>`}</span><div class="ar-body"><div class="ar-nome">${esc(a.nome)}</div><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${Math.round(((a.estrelas||0)/max)*100)}%;background:${g?.cor||'#C9953A'}"></div></div></div></div><div class="ar-est"><svg class="ei" viewBox="0 0 24 24" fill="#E5A93D"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg> ${a.estrelas||0}</div><div class="ar-actions"><button class="ibtn gold" onclick="addEst('${a.id}',1)">+</button><button class="ibtn" onclick="addEst('${a.id}',-1)">−</button></div></div>`;}).join('')||emptyHTML('<svg class="ei" viewBox="0 0 24 24" fill="#E5A93D"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg>','Nenhum aluno ainda'); }
-async function addEst(id,delta){ const a=DATA.alunos.find(x=>x.id===id);if(!a)return; const nivelAntes=nivelDoAluno(a.estrelas).indice; a.estrelas=Math.max(0,(a.estrelas||0)+delta);if(!a.historico)a.historico=[];a.historico.push({data:today(),status:'manual',delta}); animarEstrela(window.event?.target, delta>0); const nivelDepois=nivelDoAluno(a.estrelas).indice; await persist();renderEstrelas(); if(delta>0&&nivelDepois>nivelAntes){ toast(`${a.nome} subiu para o nível ${nivelDoAluno(a.estrelas).nome}!`,'ok'); } else { toast(delta>0?'Estrela adicionada!':'Estrela removida.',delta>0?'ok':'warn'); } }
+async function addEst(id,delta){ const a=DATA.alunos.find(x=>x.id===id);if(!a)return;a.estrelas=Math.max(0,(a.estrelas||0)+delta);if(!a.historico)a.historico=[];a.historico.push({data:today(),status:'manual',delta}); await persist();renderEstrelas();toast(delta>0?'Estrela adicionada!':'Estrela removida.',delta>0?'ok':'warn'); }
 
 /* ════ DESAFIOS ════ */
 function renderDesafios(){ gi('desafiosList').innerHTML=DATA.desafios.map(d=>`<div class="card-item"><div class="ci-icon"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div><div class="ci-body"><div class="ci-title">${esc(d.nome)}</div><div class="ci-sub">+${d.pts||0} estrelas${d.descricao?' · '+esc(d.descricao):''}</div></div><div class="ci-actions"><button class="ibtn gold" onclick="registrarDesafio('${d.id}')"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#15803D"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> Registrar</button><button class="ibtn" onclick="editDesafio('${d.id}')"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>️</button><button class="ibtn red" onclick="delDesafio('${d.id}')"><svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></div></div>`).join('')||emptyHTML('<svg class="ei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>','Nenhum desafio'); }
