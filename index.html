@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- EduStar build 20260713-113131 -->
+<!-- EduStar build 20260713-114043 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -364,41 +364,68 @@ body[data-bg="ocean"] #bgFx{background:#06121f}
 body[data-bg="ocean"] #bgFx .blob{opacity:.46}
 body[data-bg="ocean"] .b1{background:#0ea5e9}body[data-bg="ocean"] .b2{background:#2563eb}body[data-bg="ocean"] .b3{background:#06b6d4}body[data-bg="ocean"] .b4{background:#3b82f6}
 
-/* ═══════════ FRUTIGER AERO (tema pessoal) ═══════════ */
+/* ═══════════ FRUTIGER AERO (tema pessoal — leve e skeuomórfico) ═══════════ */
+/* Bolhas leves (só transform, GPU) */
 .fa-bub{position:absolute;bottom:-12%;border-radius:50%;display:none;opacity:0;
   background:radial-gradient(circle at 32% 26%, rgba(255,255,255,.95), rgba(255,255,255,.25) 42%, rgba(180,230,255,.12) 62%, rgba(255,255,255,.04) 75%);
   border:1px solid rgba(255,255,255,.55);
-  box-shadow:inset 0 0 10px rgba(255,255,255,.5), 0 0 10px rgba(120,200,255,.35);
+  box-shadow:inset 0 0 10px rgba(255,255,255,.5), 0 0 8px rgba(120,200,255,.3);
   will-change:transform;pointer-events:none}
-body[data-bg="frutiger"] #bgFx{background:linear-gradient(180deg,#2fb3ff 0%,#5fc9f2 28%,#a3e6b0 60%,#74d17e 82%,#3faf4c 100%)}
-body[data-bg="frutiger"] #bgFx .blob{opacity:.28;background:#ffffff;filter:blur(80px)}
-body[data-bg="frutiger"] .b3{background:#d6fff0}body[data-bg="frutiger"] .b4{background:#cdefff}
+body[data-bg="frutiger"] #bgFx{background:linear-gradient(180deg,#2fb3ff 0%,#5fc9f2 26%,#a3e6b0 58%,#74d17e 80%,#3faf4c 100%)}
+body[data-bg="frutiger"] #bgFx .blob{display:none}          /* remove blobs pesados (blur) */
+body[data-bg="frutiger"] *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}  /* zero desfoque = leve */
 body[data-bg="frutiger"] .fa-bub{display:block;animation-name:faRise;animation-timing-function:ease-in;animation-iteration-count:infinite}
-@keyframes faRise{0%{transform:translateY(0) translateX(0) scale(.9);opacity:0}12%{opacity:.9}88%{opacity:.9}100%{transform:translateY(-118vh) translateX(24px) scale(1.05);opacity:0}}
+@keyframes faRise{0%{transform:translateY(0) translateX(0);opacity:0}12%{opacity:.9}88%{opacity:.9}100%{transform:translateY(-116vh) translateX(20px);opacity:0}}
 
-/* Vidro glossy Frutiger nos painéis */
+/* Painéis glossy com PROFUNDIDADE (sem backdrop-filter = leve). Relevo estilo iOS antigo */
 body[data-bg="frutiger"] .stat-card,body[data-bg="frutiger"] .card-item,body[data-bg="frutiger"] .chart-box,
 body[data-bg="frutiger"] .rank-box,body[data-bg="frutiger"] .aluno-row,body[data-bg="frutiger"] .grupo-card,
 body[data-bg="frutiger"] .freq-row,body[data-bg="frutiger"] .freq-summary,body[data-bg="frutiger"] .cfg-section,
 body[data-bg="frutiger"] .swot-q,body[data-bg="frutiger"] .w2h-card,body[data-bg="frutiger"] .p5-card,
 body[data-bg="frutiger"] .relat-card,body[data-bg="frutiger"] .modal,body[data-bg="frutiger"] .data-table,
-body[data-bg="frutiger"] .page-toolbar{
-  background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(238,250,255,.82))!important;
-  border:1px solid rgba(255,255,255,.9)!important;
-  box-shadow:0 6px 22px rgba(20,90,150,.16),inset 0 1px 0 rgba(255,255,255,.95)!important;
-  backdrop-filter:blur(14px) saturate(170%)!important;-webkit-backdrop-filter:blur(14px) saturate(170%)!important;
-  color:#123!important}
-body[data-bg="frutiger"] .topbar,body[data-bg="frutiger"] .sidebar,body[data-bg="frutiger"] .main-toolbar{
-  background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(224,244,255,.72))!important;
-  backdrop-filter:blur(18px) saturate(180%)!important;-webkit-backdrop-filter:blur(18px) saturate(180%)!important;
-  border-color:rgba(255,255,255,.7)!important}
-/* Botões glossy */
-body[data-bg="frutiger"] .btn.primary{background:linear-gradient(180deg,#5fc4ff,#2a8fea)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 3px 10px rgba(42,143,234,.4)!important;border:none}
-body[data-bg="frutiger"] .btn.gold{background:linear-gradient(180deg,#ffd25f,#eaa72a)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 3px 10px rgba(234,167,42,.4)!important;color:#3a2a06!important}
-/* Realce da marca e itens ativos em aqua */
-body[data-bg="frutiger"] .nav-item.active{background:linear-gradient(180deg,rgba(95,196,255,.28),rgba(42,143,234,.16))!important;color:#0a5a9e!important}
-body[data-bg="frutiger"] .nav-item.active::before{background:#2a8fea!important}
-body[data-bg="frutiger"]{--primary:#1f8fe0;--primary-l:rgba(95,196,255,.2)}
+body[data-bg="frutiger"] .page-toolbar,body[data-bg="frutiger"] .cfg-card{
+  background:linear-gradient(180deg,#ffffff 0%,#f0f9ff 50%,#e2f1ff 100%)!important;
+  border:1px solid #ffffff!important;
+  box-shadow:0 8px 18px rgba(20,90,150,.22), 0 2px 4px rgba(20,90,150,.14), inset 0 1px 0 rgba(255,255,255,1), inset 0 -10px 18px rgba(175,215,255,.22)!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  color:#0e2a3d!important}
+/* Brilho reflexo no topo dos cards maiores (a "casquinha" glossy do iOS) */
+body[data-bg="frutiger"] .stat-card,body[data-bg="frutiger"] .chart-box,body[data-bg="frutiger"] .rank-box,
+body[data-bg="frutiger"] .grupo-card,body[data-bg="frutiger"] .relat-card{position:relative}
+body[data-bg="frutiger"] .stat-card::after,body[data-bg="frutiger"] .chart-box::after,body[data-bg="frutiger"] .rank-box::after,
+body[data-bg="frutiger"] .grupo-card::after,body[data-bg="frutiger"] .relat-card::after{
+  content:'';position:absolute;left:0;right:0;top:0;height:42%;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.65),rgba(255,255,255,0));mix-blend-mode:screen}
+
+/* Topbar/sidebar/toolbar sólidos glossy (sem blur) */
+body[data-bg="frutiger"] .topbar,body[data-bg="frutiger"] .main-toolbar{
+  background:linear-gradient(180deg,#eaf7ff 0%,#cfeaff 100%)!important;border-color:rgba(255,255,255,.9)!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 6px rgba(20,90,150,.15)!important}
+body[data-bg="frutiger"] .sidebar{
+  background:linear-gradient(180deg,#eef9ff 0%,#d4ecff 60%,#c8e8d4 100%)!important;border-color:rgba(255,255,255,.85)!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  box-shadow:inset -1px 0 0 rgba(255,255,255,.7)!important}
+
+/* Botões glossy iOS: linha de brilho no meio (48%/52%) */
+body[data-bg="frutiger"] .btn.primary{
+  background:linear-gradient(180deg,#8ad6ff 0%,#4aa6f0 48%,#2f92ea 52%,#1c7fd6 100%)!important;
+  border:1px solid #1670c0!important;color:#fff!important;text-shadow:0 -1px 1px rgba(0,40,80,.35)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 3px 7px rgba(30,120,210,.45),0 1px 2px rgba(0,0,0,.15)!important}
+body[data-bg="frutiger"] .btn.gold{
+  background:linear-gradient(180deg,#ffe08a 0%,#f2b840 48%,#e8a828 52%,#d9971c 100%)!important;
+  border:1px solid #c78716!important;color:#3a2a06!important;text-shadow:0 1px 0 rgba(255,255,255,.4)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 3px 7px rgba(210,150,30,.45),0 1px 2px rgba(0,0,0,.12)!important}
+body[data-bg="frutiger"] .btn.outline{
+  background:linear-gradient(180deg,#ffffff,#eaf4fd)!important;border:1px solid #b8d4ee!important;color:#0e5a9e!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 4px rgba(20,90,150,.12)!important}
+
+/* Itens e destaques em aqua */
+body[data-bg="frutiger"] .nav-item.active{background:linear-gradient(180deg,rgba(120,205,255,.4),rgba(60,150,235,.22))!important;color:#0a5a9e!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.7)!important;border-radius:8px}
+body[data-bg="frutiger"] .nav-item.active::before{background:#1c7fd6!important}
+body[data-bg="frutiger"]{--primary:#1f8fe0;--primary-l:rgba(120,205,255,.28)}
+/* Hero do painel com brilho glossy */
+body[data-bg="frutiger"] .dash-hero{background:linear-gradient(180deg,#3aa0ee 0%,#1c7fd6 100%)!important;box-shadow:0 10px 26px rgba(28,127,214,.4),inset 0 1px 0 rgba(255,255,255,.5)!important}
 
 @keyframes drift1{0%,100%{transform:translate(0,0)}50%{transform:translate(7vw,9vh)}}
 @keyframes drift2{0%,100%{transform:translate(0,0)}50%{transform:translate(-8vw,7vh)}}
@@ -858,7 +885,7 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
               <div class="bg-opt o-matrix" data-bg="matrix" onclick="escolherFundo('matrix')">Matrix</div>
               <div class="bg-opt o-sunset" data-bg="sunset" onclick="escolherFundo('sunset')">Pôr do sol</div>
               <div class="bg-opt o-ocean"  data-bg="ocean"  onclick="escolherFundo('ocean')">Oceano</div>
-              <div class="bg-opt o-frutiger" data-bg="frutiger" onclick="escolherFundo('frutiger')">Frutiger Aero</div>
+              <div class="bg-opt o-frutiger" id="bgOptFrutiger" data-bg="frutiger" onclick="escolherFundo('frutiger')" style="display:none">Frutiger Aero</div>
             </div>
           </div>
           <div class="cfg-section">
@@ -1483,6 +1510,7 @@ function mergeData(r) {
   const b = defaultData();
   for (const k of Object.keys(b)) {
     if (k==='config') b.config={...b.config,...(r.config||{})};
+    else if (k==='uiPrefs') b.uiPrefs=(r.uiPrefs && typeof r.uiPrefs==='object')?r.uiPrefs:{};
     else if (Array.isArray(b[k])) b[k]=Array.isArray(r[k])?r[k]:[];
   }
   return b;
@@ -1491,7 +1519,7 @@ function mergeData(r) {
 function defaultData() {
   return {
     config:{ nomePlat:'EduStar', cor2:'#C9953A', darkMode:false, presenca:10, participacao:5, atraso:-2, falta:-5, bonus100:10, kahootFreqMin:75, metaEstrMes:50 },
-    turmas:[], grupos:[], alunos:[], recompensas:[], desafios:[], kahoot:[], metas:[], swot:[], w2h:[], porques:[], sugestoes:[], membros:[], atestados:[], freqRegistros:[]
+    turmas:[], grupos:[], alunos:[], recompensas:[], desafios:[], kahoot:[], metas:[], swot:[], w2h:[], porques:[], sugestoes:[], membros:[], atestados:[], freqRegistros:[], uiPrefs:{}
   };
 }
 
@@ -2062,6 +2090,8 @@ async function restaurarBackup(ev){
 function renderConfig(){
   const base = DATA.config||{};
   const p = prefUsuario(); // preferências locais (aparência) de QUALQUER usuário
+  // Tema Frutiger Aero: exclusivo da SUA conta (dono da escola)
+  const fru = gi('bgOptFrutiger'); if(fru) fru.style.display = USER?.isOwner ? 'flex' : 'none';
   sv('cfgNomePlat',base.nomePlat||'EduStar');
   sv('cfgCor2', p.cor2||base.cor2||'#C9953A');
   const dm=gi('cfgDarkMode'); if(dm) dm.checked = p.darkMode!=null ? !!p.darkMode : !!base.darkMode;
@@ -2092,8 +2122,22 @@ async function saveConfig(){
 }
 
 /* ════ PREFERÊNCIAS DE APARÊNCIA (por usuário, local) ════ */
-function prefUsuario(){ return LS.g('pref_'+(USER?.uid||'x')) || {}; }
-function salvarPrefUsuario(p){ LS.s('pref_'+(USER?.uid||'x'), p); }
+function prefUsuario(){
+  const uid = USER?.uid||'x';
+  // Preferência da CONTA (sincronizada com a nuvem) tem prioridade — segue você em qualquer aparelho.
+  if(DATA && DATA.uiPrefs && DATA.uiPrefs[uid]) return DATA.uiPrefs[uid];
+  // Cai para o cache local se a conta ainda não tiver preferência salva.
+  return LS.g('pref_'+uid) || {};
+}
+function salvarPrefUsuario(p){
+  const uid = USER?.uid||'x';
+  LS.s('pref_'+uid, p);                 // cache local (rápido, offline)
+  if(DATA){                             // salva na CONTA (sincroniza entre aparelhos)
+    if(!DATA.uiPrefs) DATA.uiPrefs={};
+    DATA.uiPrefs[uid]=p;
+    try{ persist(); }catch(e){}
+  }
+}
 function aplicarPrefUsuario(){
   const p = prefUsuario();
   const base = DATA.config||{};
@@ -2114,6 +2158,8 @@ function aplicarPrefUsuario(){
 }
 /* Escolher fundo (clique nos cards) */
 function escolherFundo(nome){
+  // Frutiger Aero é exclusivo da conta do dono
+  if(nome==='frutiger' && !USER?.isOwner){ return; }
   const p = prefUsuario(); p.bg = nome;
   // Frutiger Aero é um tema claro e brilhante — desliga o modo escuro automaticamente
   if(nome==='frutiger'){ p.darkMode = false; }
