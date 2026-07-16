@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- EduStar build 20260716-144745 -->
+<!-- EduStar build 20260716-205440 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -338,6 +338,31 @@ html.dark .sc-violet{background:#2A2140}html.dark .sc-amber{background:#3A2A12}h
 .confirm-actions .btn{flex:1;padding:11px}
 
 /* Cabeçalho de página (título + descrição + ação) */
+.global-search-btn{display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--t3);cursor:pointer;font-size:13px;transition:all var(--tr);flex-shrink:0}
+.global-search-btn:hover{border-color:var(--primary);color:var(--primary);background:var(--surface)}
+.global-search-btn svg{width:16px;height:16px}
+.gsb-kbd{font-size:10px;font-weight:600;background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:1px 5px;color:var(--t4)}
+.busca-overlay{align-items:flex-start!important;padding-top:12vh}
+.busca-box{width:min(92vw,560px);background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.3);overflow:hidden}
+.busca-input-wrap{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--border)}
+.busca-input-wrap svg{width:20px;height:20px;color:var(--t3);flex-shrink:0}
+.busca-input{flex:1;border:none;background:none;outline:none;font-size:16px;color:var(--text)}
+.busca-esc{font-size:11px;color:var(--t4);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer;flex-shrink:0}
+.busca-resultados{max-height:52vh;overflow-y:auto;padding:8px}
+.busca-item{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;cursor:pointer;transition:background var(--tr)}
+.busca-item:hover,.busca-item.sel{background:var(--surface2)}
+.busca-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}.busca-ic svg{width:18px;height:18px}
+.busca-nome{font-weight:600;font-size:14px;color:var(--text)}
+.busca-tipo{font-size:12px;color:var(--t3)}
+.busca-vazio{padding:32px;text-align:center;color:var(--t4);font-size:13px}
+.busca-cat{font-size:10.5px;font-weight:700;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;padding:10px 12px 4px}
+@media(max-width:600px){.gsb-txt,.gsb-kbd{display:none}.global-search-btn{width:36px;padding:0;justify-content:center}}
+
+/* Cabeçalho de página (título + descrição + ação) */
+.onb-icon{width:64px;height:64px;border-radius:18px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;background:var(--primary-l);color:var(--primary)}
+.onb-icon svg{width:32px;height:32px}
+.onb-dot{width:8px;height:8px;border-radius:50%;background:var(--border2);transition:all var(--tr)}
+.onb-dot.on{background:var(--primary);width:22px;border-radius:99px}
 .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--border)}
 .ph-l{min-width:0}
 .ph-title{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:19px;letter-spacing:-.02em;line-height:1.1}
@@ -425,9 +450,19 @@ body[data-bg="frutiger"] .topbar,body[data-bg="frutiger"] .main-toolbar{
   backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 6px rgba(20,90,150,.15)!important}
 body[data-bg="frutiger"] .sidebar{
-  background:linear-gradient(180deg,#eef9ff 0%,#d4ecff 60%,#c8e8d4 100%)!important;border-color:rgba(255,255,255,.85)!important;
-  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
-  box-shadow:inset -1px 0 0 rgba(255,255,255,.7)!important}
+  background:linear-gradient(180deg,#eef9ff 0%,#d4ecff 55%,#c8e8d4 100%)!important;border-color:rgba(255,255,255,.85)!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+body[data-bg="frutiger"] .sidebar.open{box-shadow:0 0 60px rgba(28,127,214,.35),inset -1px 0 0 rgba(255,255,255,.7)!important}
+/* Cabeçalho do menu glossy (combina com o corpo) */
+body[data-bg="frutiger"] .drawer-head{
+  background:linear-gradient(180deg,#f3fbff 0%,#def0ff 100%)!important;border-bottom:1px solid rgba(255,255,255,.9)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 1px 3px rgba(20,90,150,.12)!important}
+body[data-bg="frutiger"] .drawer-title{color:#0e3a5c!important}
+body[data-bg="frutiger"] .drawer-close{background:linear-gradient(180deg,#ffffff,#e6f2fd)!important;border:1px solid #bcdaf2!important;color:#0e5a9e!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.9)!important}
+body[data-bg="frutiger"] .menu-toggle{background:linear-gradient(180deg,#ffffff,#e0f0fd)!important;border:1px solid #b8d4ee!important;color:#0e5a9e!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 5px rgba(20,90,150,.18)!important}
+body[data-bg="frutiger"] .menu-toggle:hover{background:linear-gradient(180deg,#f0f8ff,#cfe8fc)!important;border-color:#1f8fe0!important}
+body[data-bg="frutiger"] .nav-item{color:#0e3a5c!important}
+body[data-bg="frutiger"] .nav-item:hover{background:rgba(255,255,255,.55)!important;color:#0a2a44!important}
 
 /* Botões glossy iOS: linha de brilho no meio (48%/52%) */
 body[data-bg="frutiger"] .btn.primary{
@@ -443,8 +478,9 @@ body[data-bg="frutiger"] .btn.outline{
   box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 4px rgba(20,90,150,.12)!important}
 
 /* Itens e destaques em aqua */
-body[data-bg="frutiger"] .nav-item.active{background:linear-gradient(180deg,rgba(120,205,255,.4),rgba(60,150,235,.22))!important;color:#0a5a9e!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.7)!important;border-radius:8px}
-body[data-bg="frutiger"] .nav-item.active::before{background:#1c7fd6!important}
+body[data-bg="frutiger"] .nav-item.active{background:linear-gradient(180deg,#5fc4ff 0%,#2f92ea 52%,#1c7fd6 100%)!important;color:#fff!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 3px 8px rgba(28,127,214,.4)!important;border-radius:11px;text-shadow:0 -1px 1px rgba(0,40,80,.25)}
+body[data-bg="frutiger"] .nav-item.active .nav-icon{opacity:1}
+body[data-bg="frutiger"] .nav-item.active::before{display:none!important}
 body[data-bg="frutiger"]{--primary:#1f8fe0;--primary-l:rgba(120,205,255,.28)}
 /* Hero do painel com brilho glossy */
 body[data-bg="frutiger"] .dash-hero{background:linear-gradient(180deg,#3aa0ee 0%,#1c7fd6 100%)!important;box-shadow:0 10px 26px rgba(28,127,214,.4),inset 0 1px 0 rgba(255,255,255,.5)!important}
@@ -597,6 +633,7 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
     <button class="menu-toggle" aria-label="Abrir menu" onclick="toggleMenu()"><svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg></button>
     <div class="topbar-brand"><span class="brand-mark"><svg viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="9" fill="var(--primary)"/><path d="M16 7l2.35 5.4 5.65.5-4.28 3.72L20.9 22 16 18.9 11.1 22l1.18-4.68L8 13.6l5.65-.5z" fill="#fff"/></svg></span> <span class="plat-nome">EduStar</span></div>
     <div class="topbar-spacer"></div>
+    <button class="global-search-btn" onclick="abrirBusca()" aria-label="Buscar" data-prof-only><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="gsb-txt">Buscar…</span><kbd class="gsb-kbd">Ctrl K</kbd></button>
     <div class="topbar-right">
       <span class="sync-dot" id="syncDot"></span>
       <span id="syncTxt" style="font-size:12px;color:var(--t3)">Online</span>
@@ -1059,6 +1096,37 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
 </div>
 
 <!-- TERMOS DE USO / COOKIES (só alunos novos) -->
+<!-- BUSCA GLOBAL -->
+<div class="modal-overlay busca-overlay" id="mBusca" onclick="if(event.target===this)closeM('mBusca')">
+  <div class="busca-box">
+    <div class="busca-input-wrap">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="buscaInput" class="busca-input" placeholder="Buscar aluno, turma ou grupo…" oninput="fazerBusca()" autocomplete="off">
+      <button class="busca-esc" onclick="closeM('mBusca')" aria-label="Fechar">esc</button>
+    </div>
+    <div id="buscaResultados" class="busca-resultados"></div>
+  </div>
+</div>
+
+<!-- TUTORIAL DE BOAS-VINDAS (professores, primeira vez) -->
+<div class="modal-overlay" id="mOnboarding" style="z-index:390">
+  <div class="modal" style="max-width:440px;text-align:center">
+    <div class="m-body" style="padding:30px 26px 22px">
+      <div class="onb-icon" id="onbIcon"></div>
+      <h3 id="onbTitulo" style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:20px;letter-spacing:-.02em;margin-bottom:8px">Bem-vindo!</h3>
+      <p id="onbDesc" style="font-size:14px;color:var(--t2);line-height:1.65;min-height:66px"></p>
+      <div class="onb-dots" id="onbDots" style="display:flex;justify-content:center;gap:7px;margin:18px 0 20px"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <button class="btn outline sm" id="onbPrev" onclick="onbNav(-1)">Voltar</button>
+        <span id="onbStep" style="font-size:12px;color:var(--t4)"></span>
+        <button class="btn primary sm" id="onbNext" onclick="onbNav(1)">Próximo</button>
+      </div>
+      <button onclick="fecharOnboarding()" style="background:none;border:none;color:var(--t4);font-size:12px;cursor:pointer;margin-top:14px;text-decoration:underline">Pular tutorial</button>
+    </div>
+  </div>
+</div>
+
+<!-- TERMOS DE USO / COOKIES (só alunos novos) -->
 <div class="modal-overlay" id="mTermos" style="z-index:400">
   <div class="modal" style="max-width:500px;max-height:92vh">
     <div class="m-body" style="padding:26px 24px 20px">
@@ -1363,7 +1431,69 @@ function startApp(user) {
   loadData();
   // Termos de uso: só para alunos que ainda não aceitaram
   mostrarTermosSeNecessario();
+  // Tutorial de boas-vindas: só para professores na primeira vez
+  mostrarOnboardingSeNecessario();
 }
+
+/* ── Tutorial de boas-vindas (professores, primeira vez) ── */
+const ONB_PASSOS = [
+  {ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 8-4 8 4"/><path d="M18 5v17M6 5v17"/><circle cx="12" cy="9" r="2"/><path d="m18 10 4 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8l4-2"/></svg>', t:'1. Crie suas Turmas', d:'Comece pelo menu <b>Turmas</b>. Cada turma é um grupo de alunos (ex: "3º Ano A"). É a base de tudo.'},
+  {ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>', t:'2. Monte os Grupos', d:'Em <b>Grupos</b>, crie os times que vão competir por estrelas (tipo "casas"). Dê um nome e uma cor para cada.'},
+  {ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>', t:'3. Adicione os Alunos', d:'Em <b>Alunos</b>, cadastre um por um ou use <b>"Importar lista"</b> para colar vários nomes de uma vez. Escolha a turma e o grupo de cada.'},
+  {ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>', t:'4. Marque a Frequência', d:'Todo dia, em <b>Frequência</b>, marque quem veio. As estrelas são somadas automaticamente por presença. O <b>Histórico de Dias</b> guarda tudo.'},
+  {ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg>', t:'5. Gamifique!', d:'Dê estrelas por participação em <b>Rota das Estrelas</b>, crie <b>Desafios</b>, <b>Recompensas</b> e acompanhe tudo no <b>Painel</b>. Bom trabalho!'},
+];
+let _onbIdx = 0;
+function mostrarOnboardingSeNecessario(){
+  if (!isProf()) return;                              // só professores
+  if (LS.g('onboarding_'+(USER?.uid||'x'))) return;   // já viu antes
+  _onbIdx = 0;
+  setTimeout(()=>{ desenharOnboarding(); openM('mOnboarding'); }, 700);
+}
+function desenharOnboarding(){
+  const p = ONB_PASSOS[_onbIdx];
+  gi('onbIcon').innerHTML = p.ic;
+  gi('onbTitulo').textContent = p.t;
+  gi('onbDesc').innerHTML = p.d;
+  gi('onbDots').innerHTML = ONB_PASSOS.map((_,i)=>`<span class="onb-dot${i===_onbIdx?' on':''}"></span>`).join('');
+  gi('onbPrev').style.visibility = _onbIdx===0 ? 'hidden' : 'visible';
+  gi('onbNext').textContent = _onbIdx===ONB_PASSOS.length-1 ? 'Começar' : 'Próximo';
+  gi('onbStep').textContent = `${_onbIdx+1} de ${ONB_PASSOS.length}`;
+}
+function onbNav(dir){
+  if(dir>0 && _onbIdx===ONB_PASSOS.length-1){ fecharOnboarding(); return; }
+  _onbIdx = Math.max(0, Math.min(ONB_PASSOS.length-1, _onbIdx+dir));
+  desenharOnboarding();
+}
+function fecharOnboarding(){
+  LS.s('onboarding_'+(USER?.uid||'x'), { visto:true, data:new Date().toISOString() });
+  closeM('mOnboarding');
+}
+function reabrirTutorial(){ _onbIdx=0; desenharOnboarding(); openM('mOnboarding'); }
+
+/* ── Busca global ── */
+function abrirBusca(){ openM('mBusca'); const i=gi('buscaInput'); if(i){i.value='';} fazerBusca(); setTimeout(()=>gi('buscaInput')?.focus(),80); }
+function fazerBusca(){
+  const q=(gv('buscaInput')||'').trim().toLowerCase();
+  const box=gi('buscaResultados');
+  const icAluno='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+  const icTurma='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 8-4 8 4"/><path d="M18 5v17M6 5v17"/><circle cx="12" cy="9" r="2"/><path d="m18 10 4 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8l4-2"/></svg>';
+  const icGrupo='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>';
+  if(!q){
+    box.innerHTML=`<div class="busca-vazio">Digite para buscar entre alunos, turmas e grupos.</div>`;
+    return;
+  }
+  const alunos=DATA.alunos.filter(a=>a.nome.toLowerCase().includes(q)).slice(0,8);
+  const turmas=DATA.turmas.filter(t=>t.nome.toLowerCase().includes(q)).slice(0,5);
+  const grupos=DATA.grupos.filter(g=>g.nome.toLowerCase().includes(q)).slice(0,5);
+  let html='';
+  if(turmas.length){ html+=`<div class="busca-cat">Turmas</div>`+turmas.map(t=>`<div class="busca-item" onclick="irBusca('turmas')"><span class="busca-ic" style="background:var(--blue-l);color:var(--blue)">${icTurma}</span><div><div class="busca-nome">${esc(t.nome)}</div><div class="busca-tipo">${DATA.alunos.filter(a=>a.turmaId===t.id).length} aluno(s)</div></div></div>`).join(''); }
+  if(grupos.length){ html+=`<div class="busca-cat">Grupos</div>`+grupos.map(g=>`<div class="busca-item" onclick="irBusca('grupos')"><span class="busca-ic" style="background:${g.cor}22;color:${g.cor}">${icGrupo}</span><div><div class="busca-nome">${esc(g.nome)}</div><div class="busca-tipo">${DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0)} estrelas</div></div></div>`).join(''); }
+  if(alunos.length){ html+=`<div class="busca-cat">Alunos</div>`+alunos.map(a=>{const g=DATA.grupos.find(x=>x.id===a.grupoId);return `<div class="busca-item" onclick="irBuscaAluno('${a.id}')"><span class="busca-ic" style="background:${g?g.cor+'22':'var(--primary-l)'};color:${g?g.cor:'var(--primary)'}">${icAluno}</span><div><div class="busca-nome">${esc(a.nome)}</div><div class="busca-tipo"><svg class="ei" viewBox="0 0 24 24" fill="#E5A93D" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg> ${a.estrelas||0} · ${DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'sem turma'}</div></div></div>`;}).join(''); }
+  box.innerHTML = html || `<div class="busca-vazio">Nada encontrado para “${esc(q)}”.</div>`;
+}
+function irBusca(page){ closeM('mBusca'); navTo(page); }
+function irBuscaAluno(id){ closeM('mBusca'); navTo('alunos'); setTimeout(()=>verAluno(id),150); }
 
 /* ── Termos de uso / cookies (apenas alunos novos) ── */
 function mostrarTermosSeNecessario(){
@@ -1693,9 +1823,10 @@ function askConfirm(opts){
   });
 }
 
-document.addEventListener('click',e=>{ if(e.target.classList.contains('modal-overlay') && e.target.id!=='mTermos') tryCloseM(e.target.id); });
+document.addEventListener('click',e=>{ if(e.target.classList.contains('modal-overlay') && e.target.id!=='mTermos' && e.target.id!=='mOnboarding') tryCloseM(e.target.id); });
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){ document.querySelectorAll('.modal-overlay.open').forEach(m=>{ if(m.id!=='mTermos') tryCloseM(m.id); }); if(gi('sidebar')?.classList.contains('open')) toggleMenu(false); }
+  if(e.key==='Escape'){ document.querySelectorAll('.modal-overlay.open').forEach(m=>{ if(m.id!=='mTermos' && m.id!=='mOnboarding') tryCloseM(m.id); }); if(gi('sidebar')?.classList.contains('open')) toggleMenu(false); }
+  if((e.ctrlKey||e.metaKey) && (e.key==='k'||e.key==='K')){ if(_started && isProf()){ e.preventDefault(); abrirBusca(); } }
   if(e.key==='Enter'&&gi('authScreen')?.style.display!=='none'){
     if(gi('panel_login')?.style.display!=='none') doLogin();
     else if(gi('panel_register')?.style.display!=='none') doRegister();
@@ -2056,7 +2187,55 @@ async function delPorque(id){if(!await askConfirm({titulo:'Remover análise?',ms
 function renderRanking(){const sorted=[...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0));gi('rankIndiv').innerHTML=sorted.length?`<table class="data-table"><thead><tr><th>#</th><th>Aluno</th><th>Turma</th><th>Grupo</th><th><svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="#E5A93D"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg></th><th>Presença%</th></tr></thead><tbody>${sorted.map((a,i)=>{const t=DATA.turmas.find(x=>x.id===a.turmaId),g=DATA.grupos.find(x=>x.id===a.grupoId),tot=(a.presencas||0)+(a.faltas||0),pct=tot>0?Math.round(((a.presencas||0)/tot)*100):null;return`<tr><td><b>${['<svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="6" fill="#E5A93D"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1" fill="#E5A93D"/></svg>','<svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="6" fill="#A8B3C5"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1" fill="#A8B3C5"/></svg>','<svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="6" fill="#C08457"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1" fill="#C08457"/></svg>'][i]||i+1}</b></td><td>${esc(a.nome)}</td><td>${t?esc(t.nome):'—'}</td><td>${g?esc(g.nome):'—'}</td><td><b style="color:var(--gold)"><svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="#E5A93D"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg>${a.estrelas||0}</b></td><td>${pct!==null?`<span class="badge ${pct>=75?'green':pct>=50?'warn':'red'}">${pct}%</span>`:'—'}</td></tr>`;}).join('')}</tbody></table>`:emptyHTML('<svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="#E5A93D"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.7V17c0 .6-.5 1-.97 1.2C7.85 18.8 7 20.2 7 22M14 14.7V17c0 .6.5 1 .97 1.2C16.15 18.8 17 20.2 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>','Nenhum aluno ainda');const gs=DATA.grupos.map(g=>({...g,est:DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0)})).sort((a,b)=>b.est-a.est);gi('rankGrupos').innerHTML=gs.map((g,i)=>`<div class="rank-row"><span class="rk-pos">${['<svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="6" fill="#E5A93D"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1" fill="#E5A93D"/></svg>','<svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="6" fill="#A8B3C5"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1" fill="#A8B3C5"/></svg>','<svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="6" fill="#C08457"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1" fill="#C08457"/></svg>'][i]||'#'+(i+1)}</span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${g.cor||'#ccc'};margin-right:5px"></span><span class="rk-nome">${esc(g.nome)}</span><span class="rk-pts"><svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="#E5A93D"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg>${g.est}</span></div>`).join('')||emptyHTML('<svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="#E5A93D"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.7V17c0 .6-.5 1-.97 1.2C7.85 18.8 7 20.2 7 22M14 14.7V17c0 .6.5 1 .97 1.2C16.15 18.8 17 20.2 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>','Nenhum grupo');}
 
 /* ════ RELATÓRIOS ════ */
-function gerarRelatorio(tipo){const tbl=(hs,rows)=>`<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:13px"><thead style="background:#f5f3ef"><tr>${hs.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;let body='';if(tipo==='geral'||tipo==='estrelas'){body+=`<h2>Ranking de Alunos</h2>`+tbl(['#','Nome','Turma','Grupo','','Presenças','Faltas'],[...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0)).map((a,i)=>[i+1,a.nome,DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'—',DATA.grupos.find(g=>g.id===a.grupoId)?.nome||'—',a.estrelas||0,a.presencas||0,a.faltas||0]));body+=`<h2 style="margin-top:20px">Ranking de Grupos</h2>`+tbl(['#','Grupo','Total'],DATA.grupos.map((g,i)=>[i+1,g.nome,DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0)]).sort((a,b)=>b[2]-a[2]));}if(tipo==='frequencia')body+=tbl(['Nome','Turma','Presenças','Faltas','Freq%'],DATA.alunos.map(a=>{const tot=(a.presencas||0)+(a.faltas||0);return[a.nome,DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'—',a.presencas||0,a.faltas||0,tot>0?Math.round(((a.presencas||0)/tot)*100)+'%':'—'];}));if(tipo==='kahoot'){const min=DATA.config.kahootFreqMin||75,premios={1:'Barra de chocolate',2:'2 bombons',3:'1 bombom'};body+=tbl(['Aluno','Posição','Freq%','Data','Prêmio'],[...DATA.kahoot].sort((a,b)=>new Date(b.data)-new Date(a.data)).map(k=>[k.nomeAluno,k.pos+'º',k.freq+'%',fmtDate(k.data),(k.freq||0)>=min?premios[k.pos]||'—':'Não elegível']));}if(tipo==='metas')body+=tbl(['Meta','Responsável','Prazo','Status','Progresso'],DATA.metas.map(m=>[m.nome,m.resp||'—',fmtDate(m.prazo),m.status||'pendente',(m.prog||0)+'%']));if(!body)body='<p>Sem dados.</p>';const w=window.open('','_blank');if(w){w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>EduStar</title></head><body style="font-family:Arial,sans-serif;margin:40px"><h1>EduStar — ${tipo}</h1><p><small>Gerado em ${new Date().toLocaleString('pt-BR')}</small></p>${body}</body></html>`);w.document.close();setTimeout(()=>w.print(),400);}toast('Relatório gerado!','ok');}
+function gerarRelatorio(tipo){
+  const tbl=(hs,rows)=>`<table><thead><tr>${hs.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td${i===0?' class="num"':''}>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const nomes={geral:'Relatório Geral',estrelas:'Relatório de Estrelas',frequencia:'Relatório de Frequência',kahoot:'Relatório de Kahoot',metas:'Relatório de Metas'};
+  let body='';
+  const totalEst=DATA.alunos.reduce((s,a)=>s+(a.estrelas||0),0);
+  const totP=DATA.alunos.reduce((s,a)=>s+(a.presencas||0),0), totF=DATA.alunos.reduce((s,a)=>s+(a.faltas||0),0);
+  const freqGeral=(totP+totF)>0?Math.round(totP/(totP+totF)*100):0;
+  let resumo='';
+  if(tipo==='geral'||tipo==='estrelas') resumo=`<div class="cards"><div class="rc"><span>${DATA.alunos.length}</span>Alunos</div><div class="rc"><span>${DATA.grupos.length}</span>Grupos</div><div class="rc"><span>${totalEst}</span>Estrelas totais</div><div class="rc"><span>${freqGeral}%</span>Frequência</div></div>`;
+  if(tipo==='frequencia') resumo=`<div class="cards"><div class="rc"><span>${DATA.alunos.length}</span>Alunos</div><div class="rc"><span>${totP}</span>Presenças</div><div class="rc"><span>${totF}</span>Faltas</div><div class="rc"><span>${freqGeral}%</span>Frequência geral</div></div>`;
+  if(tipo==='geral'||tipo==='estrelas'){
+    body+=resumo+`<h2>Ranking de Alunos</h2>`+tbl(['#','Nome','Turma','Grupo','Estrelas','Presenças','Faltas'],[...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0)).map((a,i)=>[i+1,esc(a.nome),esc(DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'—'),esc(DATA.grupos.find(g=>g.id===a.grupoId)?.nome||'—'),a.estrelas||0,a.presencas||0,a.faltas||0]));
+    body+=`<h2>Ranking de Grupos</h2>`+tbl(['#','Grupo','Total de estrelas'],DATA.grupos.map(g=>[g.nome,DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0)]).sort((a,b)=>b[1]-a[1]).map((r,i)=>[i+1,esc(r[0]),r[1]]));
+  }
+  if(tipo==='frequencia') body+=resumo+`<h2>Frequência por Aluno</h2>`+tbl(['Nome','Turma','Presenças','Faltas','Freq%'],DATA.alunos.map(a=>{const tot=(a.presencas||0)+(a.faltas||0);return[esc(a.nome),esc(DATA.turmas.find(t=>t.id===a.turmaId)?.nome||'—'),a.presencas||0,a.faltas||0,tot>0?Math.round(((a.presencas||0)/tot)*100)+'%':'—'];}));
+  if(tipo==='kahoot'){const min=DATA.config.kahootFreqMin||75,premios={1:'Barra de chocolate',2:'2 bombons',3:'1 bombom'};body+=`<h2>Resultados de Kahoot</h2>`+tbl(['Aluno','Posição','Freq%','Data','Prêmio'],[...DATA.kahoot].sort((a,b)=>new Date(b.data)-new Date(a.data)).map(k=>[esc(k.nomeAluno),k.pos+'º',k.freq+'%',fmtDate(k.data),(k.freq||0)>=min?premios[k.pos]||'—':'Não elegível']));}
+  if(tipo==='metas')body+=`<h2>Metas</h2>`+tbl(['Meta','Responsável','Prazo','Status','Progresso'],DATA.metas.map(m=>[esc(m.nome),esc(m.resp||'—'),fmtDate(m.prazo),esc(m.status||'pendente'),(m.prog||0)+'%']));
+  if(!body)body='<p class="vazio">Ainda não há dados para este relatório.</p>';
+  const escola=USER?.schoolNome||'EduStar';
+  const dataHora=new Date().toLocaleString('pt-BR',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const css=`*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;color:#1a2233;background:#fff;padding:0}
+  .sheet{max-width:900px;margin:0 auto;padding:38px 40px}
+  .rh{display:flex;align-items:center;gap:14px;padding-bottom:20px;border-bottom:3px solid #3056D3;margin-bottom:8px}
+  .logo{width:46px;height:46px;border-radius:12px;background:#3056D3;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .logo svg{width:28px;height:28px}
+  .rh h1{font-size:22px;font-weight:700;letter-spacing:-.5px;color:#0f172a}.rh .sub{font-size:13px;color:#64748b;margin-top:2px}
+  .meta{text-align:right;margin-left:auto;font-size:12px;color:#64748b;line-height:1.6}
+  .cards{display:flex;gap:12px;margin:22px 0 8px;flex-wrap:wrap}
+  .rc{flex:1;min-width:120px;background:#f4f7fc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;font-size:12px;color:#64748b;font-weight:600}
+  .rc span{display:block;font-size:26px;font-weight:700;color:#3056D3;letter-spacing:-1px;margin-bottom:2px}
+  h2{font-size:15px;font-weight:700;color:#0f172a;margin:26px 0 10px;padding-left:10px;border-left:4px solid #3056D3}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:8px}
+  thead th{background:#3056D3;color:#fff;text-align:left;padding:9px 12px;font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em}
+  thead th:first-child{border-radius:7px 0 0 0}thead th:last-child{border-radius:0 7px 0 0}
+  tbody td{padding:9px 12px;border-bottom:1px solid #e8edf5}
+  tbody tr:nth-child(even){background:#f8fafc}
+  td.num{color:#94a3b8;font-weight:600;width:36px}
+  .vazio{color:#94a3b8;padding:30px;text-align:center;font-style:italic}
+  .rf{margin-top:30px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center}
+  @media print{body{padding:0}.sheet{padding:20px 24px;max-width:100%}h2{break-after:avoid}tr{break-inside:avoid}thead{display:table-header-group}}`;
+  const logoSvg=`<svg viewBox="0 0 32 32" fill="none"><path d="M16 5l2.9 6.7 7 .6-5.3 4.6 1.6 6.9L16 20.4 9.8 24.4l1.6-6.9L6 12.9l7-.6z" fill="#fff"/></svg>`;
+  const w=window.open('','_blank');
+  if(w){
+    w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${nomes[tipo]||'Relatório'} — ${esc(escola)}</title><style>${css}</style></head><body><div class="sheet"><div class="rh"><div class="logo">${logoSvg}</div><div><h1>${nomes[tipo]||'Relatório'}</h1><div class="sub">${esc(escola)}</div></div><div class="meta">Gerado em<br><b>${dataHora}</b></div></div>${body}<div class="rf">Relatório gerado pela plataforma EduStar · ${esc(escola)}</div></div></body></html>`);
+    w.document.close();
+    setTimeout(()=>w.print(),500);
+  }
+  toast('Relatório aberto para impressão!','ok');
+}
 
 /* Relatório por período (usa freqRegistros com datas) */
 function gerarRelatorioPeriodo(){
