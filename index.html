@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- EduStar build 20260716-205440 -->
+<!-- EduStar build 20260719-003214 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -2534,21 +2534,22 @@ async function uploadArquivo(file, pasta, privado){
     return { url: await fileToBase64(file), nome: file.name, tipo: file.type };
   }
   const ext = (file.name.split('.').pop()||'bin').toLowerCase();
+  const bucket = privado ? 'atestados' : 'anexos';   // atestados vão para um depósito PRIVADO separado
   const caminho = `${USER.schoolId}/${pasta}/${uid()}.${ext}`;
-  const { error } = await sb.storage.from('anexos').upload(caminho, file, { upsert:false });
+  const { error } = await sb.storage.from(bucket).upload(caminho, file, { upsert:false });
   if (error) throw error;
   if (privado) {
-    // Arquivo privado (ex: atestados): NÃO gera URL pública. Guarda só o caminho.
-    return { caminho, nome: file.name, tipo: file.type, privado:true };
+    // Arquivo privado (ex: atestados): NÃO gera URL pública. Guarda só o caminho e o depósito.
+    return { bucket, caminho, nome: file.name, tipo: file.type, privado:true };
   }
-  const { data:pub } = sb.storage.from('anexos').getPublicUrl(caminho);
-  return { url: pub.publicUrl, nome: file.name, tipo: file.type, caminho };
+  const { data:pub } = sb.storage.from(bucket).getPublicUrl(caminho);
+  return { url: pub.publicUrl, nome: file.name, tipo: file.type, caminho, bucket };
 }
 /* Gera uma URL temporária (assinada) e abre o anexo privado */
-async function abrirAnexo(caminho){
+async function abrirAnexo(caminho, bucket){
   if(!SB_OK || !sb){ toast('Disponível apenas online.','warn'); return; }
   try{
-    const { data, error } = await sb.storage.from('anexos').createSignedUrl(caminho, 120); // 2 min
+    const { data, error } = await sb.storage.from(bucket||'anexos').createSignedUrl(caminho, 120); // 2 min
     if(error) throw error;
     window.open(data.signedUrl, '_blank');
   }catch(e){ toast('Não foi possível abrir o documento: '+e.message,'err'); }
@@ -2599,7 +2600,7 @@ function renderAtestados(){
       <div class="ci-icon"><svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/></svg></div>
       <div class="ci-body">
         <div class="ci-title">${esc(a.titulo)}</div>
-        ${a.anexo?(a.anexo.privado&&a.anexo.caminho?`<div style="margin-top:8px"><button class="btn outline sm" onclick="abrirAnexo('${a.anexo.caminho}')"><svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Abrir documento (privado)</button><div style="font-size:11px;color:var(--t4);margin-top:4px">Link temporário e seguro, expira em 2 minutos</div></div>`:`<div style="margin-top:8px"><a href="${a.anexo.url}" target="_blank">${ehImagem(a.anexo.tipo)?`<img src="${a.anexo.url}" style="max-width:220px;max-height:180px;border-radius:8px;border:1px solid var(--border)">`:`<svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> Abrir ${esc(a.anexo.nome)}`}</a></div>`):''}
+        ${a.anexo?(a.anexo.privado&&a.anexo.caminho?`<div style="margin-top:8px"><button class="btn outline sm" onclick="abrirAnexo('${a.anexo.caminho}','${a.anexo.bucket||'anexos'}')"><svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Abrir documento (privado)</button><div style="font-size:11px;color:var(--t4);margin-top:4px">Link temporário e seguro, expira em 2 minutos</div></div>`:`<div style="margin-top:8px"><a href="${a.anexo.url}" target="_blank">${ehImagem(a.anexo.tipo)?`<img src="${a.anexo.url}" style="max-width:220px;max-height:180px;border-radius:8px;border:1px solid var(--border)">`:`<svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> Abrir ${esc(a.anexo.nome)}`}</a></div>`):''}
         <div class="ci-sub">Enviado por ${esc(a.autor)} · ${fmtDate(a.criadoEm)}</div>
       </div>
       <div class="ci-actions">
@@ -2623,6 +2624,11 @@ async function enviarAtestado(){
 }
 async function delAtestado(id){
   if(!await askConfirm({titulo:'Remover atestado?',msg:'O atestado e o arquivo anexado serão removidos.',okTxt:'Remover'}))return;
+  const at = DATA.atestados.find(a=>a.id===id);
+  // Apaga também o arquivo do depósito (evita arquivos órfãos ocupando espaço)
+  if(at?.anexo?.caminho && SB_OK && sb){
+    try{ await sb.storage.from(at.anexo.bucket||'anexos').remove([at.anexo.caminho]); }catch(e){}
+  }
   DATA.atestados=DATA.atestados.filter(a=>a.id!==id);
   await persist(); renderAtestados();
 }
