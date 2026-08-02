@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- EduStar build 20260719-003906 -->
+<!-- EduStar build 20260802-142449 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -370,6 +370,28 @@ html.dark .sc-violet{background:#2A2140}html.dark .sc-amber{background:#3A2A12}h
 .btn svg{width:16px;height:16px;flex-shrink:0}
 .page-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:20px;padding:14px 16px;background:var(--glass-strong);border:1px solid var(--border);border-radius:var(--rl);box-shadow:var(--sh-card)}
 
+/* ═══════════ MURAL DE AVISOS ═══════════ */
+.mural-card{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--primary);border-radius:var(--rl);padding:16px 18px;margin-bottom:14px;box-shadow:var(--sh-card);position:relative;transition:box-shadow .15s}
+.mural-card:hover{box-shadow:var(--sh2)}
+.mural-card.tipo-info{border-left-color:#3056D3}
+.mural-card.tipo-importante{border-left-color:#E5A93D}
+.mural-card.tipo-evento{border-left-color:#15803D}
+.mural-card.tipo-urgente{border-left-color:#DC2626}
+.mural-card.fixado{background:linear-gradient(180deg,var(--warn-l),var(--surface))}
+.mc-top{display:flex;align-items:center;gap:9px;margin-bottom:8px;flex-wrap:wrap}
+.mc-titulo{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;color:var(--text);letter-spacing:-.01em;flex:1;min-width:150px}
+.mc-badge{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em}
+.mc-badge.tipo-info{background:var(--blue-l);color:var(--blue)}
+.mc-badge.tipo-importante{background:var(--warn-l);color:#B8860B}
+.mc-badge.tipo-evento{background:var(--green-l);color:var(--green)}
+.mc-badge.tipo-urgente{background:var(--red-l);color:var(--red)}
+.mc-pin{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:#B8860B}
+.mc-pin svg{width:13px;height:13px}
+.mc-texto{font-size:14px;color:var(--t2);line-height:1.65;white-space:pre-wrap;word-break:break-word}
+.mc-foot{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);gap:10px;flex-wrap:wrap}
+.mc-meta{font-size:12px;color:var(--t3)}
+.mc-acoes{display:flex;gap:6px}
+
 /* Responsive */
 @media(max-width:768px){
   .sidebar{width:min(86vw,300px)}
@@ -655,6 +677,7 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
       <div class="nav-body">
         <div class="sb-section">Principal</div>
         <button class="nav-item active" data-page="dashboard" onclick="navTo('dashboard')"><span class="nav-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg></span> Painel</button>
+        <button class="nav-item" data-page="mural" onclick="navTo('mural')"><span class="nav-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18M8 15h6M8 19h4"/></svg></span> Mural</button>
         <div class="sb-section">Gestão</div>
         <button class="nav-item" data-page="turmas" onclick="navTo('turmas')"><span class="nav-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 22v-4a2 2 0 0 0-4 0v4"/><path d="m18 10 4 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8l4-2"/><path d="M18 5v17"/><path d="m4 6 8-4 8 4"/><path d="M6 5v17"/><circle cx="12" cy="9" r="2"/></svg></span> Turmas</button>
         <button class="nav-item" data-page="grupos" onclick="navTo('grupos')"><span class="nav-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></span> Grupos</button>
@@ -688,6 +711,12 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
       <div class="main-toolbar">
         <span id="pageTitle">Painel</span>
         <div id="tbRight"></div>
+      </div>
+
+      <!-- MURAL DE AVISOS -->
+      <div class="pg pb" id="pg-mural">
+        <div class="page-head"><div class="ph-l"><h2 class="ph-title">Mural de Avisos</h2><p class="ph-sub">Comunicados importantes da escola</p></div><button class="btn primary" data-prof-only onclick="openNovoComunicado()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Novo comunicado</button></div>
+        <div id="muralList"></div>
       </div>
 
       <!-- DASHBOARD -->
@@ -1097,6 +1126,23 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
 </div>
 
 <!-- TERMOS DE USO / COOKIES (só alunos novos) -->
+<!-- COMUNICADO (Mural) -->
+<div class="modal-overlay" id="mComunicado">
+  <div class="modal wide">
+    <div class="m-head"><h3 id="mComunicadoT">Novo comunicado</h3><button class="m-close" onclick="tryCloseM('mComunicado')" aria-label="Fechar"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="m-body">
+      <input type="hidden" id="fcId">
+      <div class="fgroup"><label class="flabel">Título</label><input id="fcTitulo" class="finput" placeholder="Ex: Reunião de pais dia 15"><div class="err-msg" id="err_fcTitulo"></div></div>
+      <div class="fgroup"><label class="flabel">Mensagem</label><textarea id="fcTexto" class="finput" rows="5" placeholder="Escreva o comunicado aqui…"></textarea><div class="err-msg" id="err_fcTexto"></div></div>
+      <div class="form-row">
+        <div class="fgroup"><label class="flabel">Tipo</label><select id="fcTipo" class="finput"><option value="info">Informativo</option><option value="importante">Importante</option><option value="evento">Evento</option><option value="urgente">Urgente</option></select></div>
+        <div class="fgroup"><label class="flabel">Fixar no topo?</label><select id="fcFixado" class="finput"><option value="nao">Não</option><option value="sim">Sim, manter no topo</option></select></div>
+      </div>
+    </div>
+    <div class="m-foot"><button class="btn outline" onclick="tryCloseM('mComunicado')">Cancelar</button><button class="btn primary" onclick="salvarComunicado()">Publicar</button></div>
+  </div>
+</div>
+
 <!-- BUSCA GLOBAL -->
 <div class="modal-overlay busca-overlay" id="mBusca" onclick="if(event.target===this)closeM('mBusca')">
   <div class="busca-box">
@@ -1678,7 +1724,7 @@ function mergeData(r) {
 function defaultData() {
   return {
     config:{ nomePlat:'EduStar', cor2:'#C9953A', darkMode:false, presenca:10, participacao:5, atraso:-2, falta:-5, bonus100:10, kahootFreqMin:75, metaEstrMes:50 },
-    turmas:[], grupos:[], alunos:[], recompensas:[], desafios:[], kahoot:[], metas:[], swot:[], w2h:[], porques:[], sugestoes:[], membros:[], atestados:[], freqRegistros:[], uiPrefs:{}
+    turmas:[], grupos:[], alunos:[], recompensas:[], desafios:[], kahoot:[], metas:[], swot:[], w2h:[], porques:[], sugestoes:[], membros:[], atestados:[], freqRegistros:[], comunicados:[], uiPrefs:{}
   };
 }
 
@@ -1794,7 +1840,7 @@ function openM(id){ clearErrs(); if(id!=='mConfirm') _modalDirty=false; gi(id)?.
 function closeM(id){ gi(id)?.classList.remove('open'); if(id!=='mConfirm') _modalDirty=false; }
 /* Fecha com aviso se houver alterações não salvas (formulários) */
 async function tryCloseM(id){
-  const formModais=['mAluno','mTurma','mGrupo','mDesafio','mKahoot','mRecomp','mMeta','mImport','mPorque','mSwot','mW2H'];
+  const formModais=['mAluno','mTurma','mGrupo','mDesafio','mKahoot','mRecomp','mMeta','mImport','mPorque','mSwot','mW2H','mComunicado'];
   if(_modalDirty && formModais.includes(id)){
     if(!await askConfirm({titulo:'Descartar alterações?',msg:'Você digitou algo que ainda não foi salvo. Se sair agora, essas informações serão perdidas.',okTxt:'Descartar',tipo:'warn'})) return;
   }
@@ -1835,7 +1881,7 @@ document.addEventListener('keydown',e=>{
 });
 
 /* ════ NAV ════ */
-const PAGE_TITLES={dashboard:'Painel',turmas:'Turmas',grupos:'Grupos',alunos:'Alunos',frequencia:'Frequência',historico:'Histórico de Dias',estrelas:'Rota das Estrelas',desafios:'Desafios',kahoot:'Kahoot',recompensas:'Recompensas',metas:'Metas',swot:'Matriz SWOT',w2h:'5W2H',porques:'5 Porquês',ranking:'Ranking',sugestoes:'Sugestões',atestados:'Atestados',membros:'Participantes',admin:'Administração',relatorios:'Relatórios',configuracoes:'Configurações'};
+const PAGE_TITLES={dashboard:'Painel',mural:'Mural de Avisos',turmas:'Turmas',grupos:'Grupos',alunos:'Alunos',frequencia:'Frequência',historico:'Histórico de Dias',estrelas:'Rota das Estrelas',desafios:'Desafios',kahoot:'Kahoot',recompensas:'Recompensas',metas:'Metas',swot:'Matriz SWOT',w2h:'5W2H',porques:'5 Porquês',ranking:'Ranking',sugestoes:'Sugestões',atestados:'Atestados',membros:'Participantes',admin:'Administração',relatorios:'Relatórios',configuracoes:'Configurações'};
 
 /* Abre/fecha o menu lateral (drawer) + backdrop */
 function toggleMenu(force){
@@ -1859,7 +1905,7 @@ function navTo(page){
 function switchTab(tab){ document.querySelectorAll('.auth-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab)); document.querySelectorAll('.auth-panel').forEach(p=>p.style.display='none'); const p=gi('panel_'+tab); if(p)p.style.display='block'; clearErrs(); }
 
 function renderAll(){ applyTheme(); aplicarPrefUsuario(); document.querySelectorAll('.plat-nome').forEach(e=>e.textContent=DATA.config?.nomePlat||'EduStar'); document.title=DATA.config?.nomePlat||'EduStar'; renderPage(activePage); }
-function renderPage(p){ ({dashboard:renderDash,turmas:renderTurmas,grupos:renderGrupos,alunos:renderAlunos,frequencia:renderFrequencia,historico:renderHistorico,estrelas:renderEstrelas,desafios:renderDesafios,kahoot:renderKahoot,recompensas:renderRecomp,metas:renderMetas,swot:renderSwot,w2h:renderW2H,porques:renderPorques,ranking:renderRanking,sugestoes:renderSugestoes,atestados:renderAtestados,membros:renderMembros,admin:renderAdmin,configuracoes:renderConfig,relatorios:renderRelatorios})[p]?.(); }
+function renderPage(p){ ({dashboard:renderDash,mural:renderMural,turmas:renderTurmas,grupos:renderGrupos,alunos:renderAlunos,frequencia:renderFrequencia,historico:renderHistorico,estrelas:renderEstrelas,desafios:renderDesafios,kahoot:renderKahoot,recompensas:renderRecomp,metas:renderMetas,swot:renderSwot,w2h:renderW2H,porques:renderPorques,ranking:renderRanking,sugestoes:renderSugestoes,atestados:renderAtestados,membros:renderMembros,admin:renderAdmin,configuracoes:renderConfig,relatorios:renderRelatorios})[p]?.(); }
 function renderRelatorios(){ fillSel('relTurma', DATA.turmas, 'Todas as turmas', gv('relTurma')); if(!gv('relDe')){ const hoje=new Date(); const mesPassado=new Date(hoje.getFullYear(),hoje.getMonth()-1,hoje.getDate()); sv('relDe',mesPassado.toISOString().slice(0,10)); sv('relAte',today()); } }
 
 /* ════ DASHBOARD ════ */
@@ -2593,6 +2639,77 @@ async function enviarSugestao(){
 }
 
 /* ════ ATESTADOS ════ */
+/* ═══════════ MURAL DE AVISOS ═══════════ */
+const TIPO_LABEL = { info:'Informativo', importante:'Importante', evento:'Evento', urgente:'Urgente' };
+function renderMural(){
+  if(!DATA.comunicados) DATA.comunicados=[];
+  const prof = isProf();
+  const list = [...DATA.comunicados].sort((a,b)=>{
+    const fa=a.fixado?1:0, fb=b.fixado?1:0;
+    if(fb!==fa) return fb-fa;
+    return b.criadoEm-a.criadoEm;
+  });
+  const box = gi('muralList'); if(!box) return;
+  if(!list.length){
+    box.innerHTML = emptyHTML('<svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18M8 15h6M8 19h4"/></svg>','Nenhum comunicado ainda', prof?'Clique em "Novo comunicado" para publicar o primeiro aviso.':'Os avisos importantes da escola vão aparecer aqui.');
+    return;
+  }
+  box.innerHTML = list.map(c=>{
+    const tipo=c.tipo||'info';
+    return `<div class="mural-card tipo-${tipo}${c.fixado?' fixado':''}">
+      <div class="mc-top">
+        ${c.fixado?`<span class="mc-pin"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>Fixado</span>`:''}
+        <span class="mc-titulo">${esc(c.titulo)}</span>
+        <span class="mc-badge tipo-${tipo}">${TIPO_LABEL[tipo]||'Aviso'}</span>
+      </div>
+      <div class="mc-texto">${esc(c.texto)}</div>
+      <div class="mc-foot">
+        <span class="mc-meta">Por ${esc(c.autor||'—')} · ${fmtDate(c.criadoEm)}</span>
+        ${prof?`<span class="mc-acoes"><button class="ibtn" aria-label="Editar comunicado" onclick="editComunicado('${c.id}')"><svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></button><button class="ibtn red" aria-label="Excluir comunicado" onclick="delComunicado('${c.id}')"><svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+function openNovoComunicado(){
+  if(!isProf()) return;
+  sv('fcId',''); sv('fcTitulo',''); sv('fcTexto','');
+  const t=gi('fcTipo'); if(t)t.value='info';
+  const f=gi('fcFixado'); if(f)f.value='nao';
+  gi('mComunicadoT').textContent='Novo comunicado';
+  clearErrs(); openM('mComunicado');
+}
+function editComunicado(id){
+  if(!isProf()) return;
+  const c=DATA.comunicados.find(x=>x.id===id); if(!c) return;
+  sv('fcId',c.id); sv('fcTitulo',c.titulo||''); sv('fcTexto',c.texto||'');
+  const t=gi('fcTipo'); if(t)t.value=c.tipo||'info';
+  const f=gi('fcFixado'); if(f)f.value=c.fixado?'sim':'nao';
+  gi('mComunicadoT').textContent='Editar comunicado';
+  clearErrs(); openM('mComunicado');
+}
+async function salvarComunicado(){
+  if(!isProf()) return;
+  const titulo=(gv('fcTitulo')||'').trim();
+  const texto=(gv('fcTexto')||'').trim();
+  if(!titulo){ setErr('fcTitulo','Coloque um título.'); return; }
+  if(!texto){ setErr('fcTexto','Escreva a mensagem.'); return; }
+  const id=gv('fcId')||uid();
+  const tipo=gv('fcTipo')||'info';
+  const fixado=gv('fcFixado')==='sim';
+  const ex=DATA.comunicados.find(c=>c.id===id);
+  if(ex){ Object.assign(ex,{titulo,texto,tipo,fixado}); }
+  else { DATA.comunicados.push({id,titulo,texto,tipo,fixado,autor:USER.nome||USER.email,autorUid:USER?.uid||'',criadoEm:Date.now()}); }
+  _modalDirty=false;
+  await persist(); closeM('mComunicado'); renderMural();
+  toast('Comunicado publicado!','ok');
+}
+async function delComunicado(id){
+  if(!isProf()) return;
+  if(!await askConfirm({titulo:'Excluir comunicado?',msg:'Este aviso será removido do mural para todos.',okTxt:'Excluir'})) return;
+  DATA.comunicados=DATA.comunicados.filter(c=>c.id!==id);
+  await persist(); renderMural();
+}
+
 function renderAtestados(){
   if (!DATA.atestados) DATA.atestados = [];
   const prof = isProf();
