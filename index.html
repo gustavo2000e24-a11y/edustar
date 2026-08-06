@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- EduStar build 20260806-013013 -->
+<!-- EduStar build 20260806-013922 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -205,6 +205,14 @@ html.dark .drawer-close{background:var(--surface2)}
 .dhb-lbl{font-size:11px;opacity:.8;margin-top:2px}
 /* Stat card icons */
 .sc-top{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.sc-arrow{margin-left:auto;width:22px;height:22px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;color:var(--t4);opacity:0;transform:translateX(-4px);transition:all var(--tr)}
+.sc-arrow svg{width:15px;height:15px}
+.stat-card.clicavel{cursor:pointer}
+.stat-card.clicavel:hover{transform:translateY(-3px);border-color:var(--primary);box-shadow:0 10px 24px rgba(48,86,211,.16)}
+.stat-card.clicavel:hover .sc-arrow{opacity:1;transform:translateX(0);color:var(--primary);background:var(--primary-l)}
+.stat-card.clicavel:hover .sc-val{color:var(--primary)}
+.stat-card.clicavel:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.stat-card.clicavel:active{transform:translateY(-1px)}
 .sc-ic{width:34px;height:34px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}.sc-ic svg{width:18px;height:18px}
 .sc-blue{background:var(--blue-l);color:var(--blue)}.sc-violet{background:#F1EBFE;color:#7C3AED}.sc-amber{background:#FEF3E2;color:#D97706}
 .sc-green{background:var(--green-l);color:var(--green)}.sc-gold{background:var(--gold-l);color:var(--gold)}.sc-rose{background:#FDEAF2;color:#DB2777}
@@ -740,12 +748,12 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
           <div class="dash-hero-badge" id="dashStars"><span class="dhb-star"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg></span><div><div class="dhb-num" id="dEs2">0</div><div class="dhb-lbl">estrelas no total</div></div></div>
         </div>
         <div class="stats-grid">
-          <div class="stat-card"><div class="sc-top"><span class="sc-ic sc-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><div class="sc-label">Alunos</div></div><div class="sc-val" id="dAl">0</div></div>
-          <div class="stat-card"><div class="sc-top"><span class="sc-ic sc-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 8-4 8 4"/><path d="M18 5v17M6 5v17"/><circle cx="12" cy="9" r="2"/><path d="m18 10 4 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8l4-2"/></svg></span><div class="sc-label">Turmas</div></div><div class="sc-val" id="dTu">0</div></div>
-          <div class="stat-card"><div class="sc-top"><span class="sc-ic sc-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></span><div class="sc-label">Grupos</div></div><div class="sc-val" id="dGr">0</div></div>
-          <div class="stat-card"><div class="sc-top"><span class="sc-ic sc-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span><div class="sc-label">Frequência</div></div><div class="sc-val" id="dFq">—</div></div>
-          <div class="stat-card"><div class="sc-top"><span class="sc-ic sc-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg></span><div class="sc-label">Estrelas</div></div><div class="sc-val" id="dEs">0</div></div>
-          <div class="stat-card"><div class="sc-top"><span class="sc-ic sc-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg></span><div class="sc-label">Recompensas</div></div><div class="sc-val" id="dRe">0</div></div>
+          <div class="stat-card clicavel" role="button" tabindex="0" onclick="navTo('alunos')"><div class="sc-top"><span class="sc-ic sc-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><div class="sc-label">Alunos</div><span class="sc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></span></div><div class="sc-val" id="dAl">0</div></div>
+          <div class="stat-card clicavel" role="button" tabindex="0" onclick="navTo('turmas')"><div class="sc-top"><span class="sc-ic sc-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 8-4 8 4"/><path d="M18 5v17M6 5v17"/><circle cx="12" cy="9" r="2"/><path d="m18 10 4 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8l4-2"/></svg></span><div class="sc-label">Turmas</div><span class="sc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></span></div><div class="sc-val" id="dTu">0</div></div>
+          <div class="stat-card clicavel" role="button" tabindex="0" onclick="navTo('grupos')"><div class="sc-top"><span class="sc-ic sc-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></span><div class="sc-label">Grupos</div><span class="sc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></span></div><div class="sc-val" id="dGr">0</div></div>
+          <div class="stat-card clicavel" role="button" tabindex="0" onclick="navTo('frequencia')"><div class="sc-top"><span class="sc-ic sc-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span><div class="sc-label">Frequência</div><span class="sc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></span></div><div class="sc-val" id="dFq">—</div></div>
+          <div class="stat-card clicavel" role="button" tabindex="0" onclick="navTo('estrelas')"><div class="sc-top"><span class="sc-ic sc-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg></span><div class="sc-label">Estrelas</div><span class="sc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></span></div><div class="sc-val" id="dEs">0</div></div>
+          <div class="stat-card clicavel" role="button" tabindex="0" onclick="navTo('recompensas')"><div class="sc-top"><span class="sc-ic sc-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg></span><div class="sc-label">Recompensas</div><span class="sc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></span></div><div class="sc-val" id="dRe">0</div></div>
         </div>
         <div class="charts-row">
           <div class="chart-box">
@@ -1961,6 +1969,8 @@ function askConfirm(opts){
 
 document.addEventListener('click',e=>{ if(e.target.classList.contains('modal-overlay') && e.target.id!=='mTermos' && e.target.id!=='mOnboarding') tryCloseM(e.target.id); });
 document.addEventListener('keydown',e=>{
+  // Acessibilidade: Enter/Espaço ativa cards clicáveis (stat-cards do painel)
+  if((e.key==='Enter'||e.key===' ') && document.activeElement?.classList?.contains('clicavel')){ e.preventDefault(); document.activeElement.click(); }
   if(e.key==='Escape'){ document.querySelectorAll('.modal-overlay.open').forEach(m=>{ if(m.id!=='mTermos' && m.id!=='mOnboarding') tryCloseM(m.id); }); if(gi('sidebar')?.classList.contains('open')) toggleMenu(false); }
   if((e.ctrlKey||e.metaKey) && (e.key==='k'||e.key==='K')){ if(_started && isProf()){ e.preventDefault(); abrirBusca(); } }
   if(e.key==='Enter'&&gi('authScreen')?.style.display!=='none'){
