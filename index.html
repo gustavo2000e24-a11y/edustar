@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- EduStar build 20260802-142449 -->
+<!-- EduStar build 20260806-013013 -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -217,6 +217,16 @@ html.dark .sc-violet{background:#2A2140}html.dark .sc-amber{background:#3A2A12}h
 .charts-row{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:20px}
 .chart-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px}
 .chart-box h4{font-size:13px;margin-bottom:12px}
+.chart-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.chart-head h4{margin-bottom:0}
+.chart-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chart-sel{font-size:12px;font-weight:600;color:var(--t2);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:5px 9px;cursor:pointer;font-family:inherit;outline:none;transition:border-color var(--tr)}
+.chart-sel:hover{border-color:var(--primary)}
+.chart-tipos{display:inline-flex;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:2px;gap:2px}
+.ct-btn{width:28px;height:26px;border:none;background:none;border-radius:6px;color:var(--t3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .12s;padding:0}
+.ct-btn svg{width:15px;height:15px}
+.ct-btn:hover{color:var(--text)}
+.ct-btn.active{background:var(--primary);color:#fff;box-shadow:0 1px 3px rgba(48,86,211,.3)}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .rank-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px}
 .rank-box h4{font-size:13px;margin-bottom:12px}
@@ -738,8 +748,29 @@ body[data-bg]:not([data-bg="limpo"]) .fq-btn{background:rgba(12,16,28,.5);color:
           <div class="stat-card"><div class="sc-top"><span class="sc-ic sc-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg></span><div class="sc-label">Recompensas</div></div><div class="sc-val" id="dRe">0</div></div>
         </div>
         <div class="charts-row">
-          <div class="chart-box"><h4>Estrelas por grupo</h4><canvas id="cGr"></canvas></div>
-          <div class="chart-box"><h4>Frequência geral</h4><canvas id="cFq"></canvas></div>
+          <div class="chart-box">
+            <div class="chart-head">
+              <h4 id="chartTitulo">Estrelas por grupo</h4>
+              <div class="chart-controls">
+                <select id="chartMetrica" class="chart-sel" onchange="buildCharts()" aria-label="Escolher dados do gráfico">
+                  <option value="estrelas-grupo">Estrelas por grupo</option>
+                  <option value="estrelas-turma">Estrelas por turma</option>
+                  <option value="freq-turma">Frequência por turma</option>
+                  <option value="top-alunos">Top alunos</option>
+                </select>
+                <div class="chart-tipos" role="group" aria-label="Tipo de gráfico">
+                  <button class="ct-btn active" data-tipo="bar" onclick="setChartTipo('bar')" aria-label="Gráfico de barras" title="Barras"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></svg></button>
+                  <button class="ct-btn" data-tipo="line" onclick="setChartTipo('line')" aria-label="Gráfico de linha" title="Linha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></button>
+                  <button class="ct-btn" data-tipo="pie" onclick="setChartTipo('pie')" aria-label="Gráfico de pizza" title="Pizza"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M12 3a9 9 0 0 1 9 9h-9z"/></svg></button>
+                </div>
+              </div>
+            </div>
+            <canvas id="cGr"></canvas>
+          </div>
+          <div class="chart-box">
+            <div class="chart-head"><h4>Presenças e faltas</h4></div>
+            <canvas id="cFq"></canvas>
+          </div>
         </div>
         <div class="two-col">
           <div class="rank-box"><h4>Top 5 alunos</h4><div id="dRank"></div></div>
@@ -1233,7 +1264,7 @@ const LS = {
 // Estado
 let USER = null, DATA = {}, activePage = 'dashboard', activeTurmaId = null;
 let charts = {}, freqState = {}, _started = false;
-let _saveTimer = null, _saving = false, _syncErro = false, _retryTimer = null;
+let _saveTimer = null, _saving = false, _syncErro = false, _retryTimer = null, _dirtyCloud = false, _pullTimer = null;
 let _intendedRole = 'professor'; // escolhido na primeira tela
 
 /* ════ BOOT ════ */
@@ -1325,6 +1356,9 @@ async function doRegister() {
 }
 
 async function doLogout() {
+  await salvarAgora();
+  if (_presencaTimer) clearInterval(_presencaTimer);
+  if (_pullTimer) clearInterval(_pullTimer);
   USER = null; DATA = {}; _started = false;
   Object.values(charts).forEach(c => { try { c.destroy(); } catch {} });
   charts = {}; freqState = {};
@@ -1664,6 +1698,7 @@ async function loadData() {
   setTimeout(()=>syncStatus('Online',''),100);
   registrarPresenca();
   iniciarPresenca();
+  iniciarSync();
 }
 
 /* ════ PRESENÇA / MEMBROS ════ */
@@ -1671,10 +1706,24 @@ let _presencaTimer = null;
 async function registrarPresenca() {
   if (!USER?.schoolId) return;
   if (!DATA.membros) DATA.membros = [];
-  const i = DATA.membros.findIndex(m => m.uid === USER.uid);
   const reg = { uid: USER.uid, nome: USER.nome||USER.email, email: USER.email, role: USER.role||'professor', lastSeen: Date.now() };
+  const i = DATA.membros.findIndex(m => m.uid === USER.uid);
   if (i >= 0) DATA.membros[i] = reg; else DATA.membros.push(reg);
-  await persist();
+  LS.s('data_'+(USER.schoolId||USER.uid), DATA);
+  // IMPORTANTE: grava a presença SEM sobrescrever as alterações de outras pessoas.
+  // Lê a versão mais recente da nuvem e mexe APENAS na lista de presença (membros).
+  if (SB_OK && sb && USER.schoolId) {
+    try {
+      const { data, error } = await sb.from('school_data').select('payload').eq('school_id', USER.schoolId).single();
+      if (!error && data && data.payload) {
+        const cloud = JSON.parse(data.payload);
+        if (!Array.isArray(cloud.membros)) cloud.membros = [];
+        const j = cloud.membros.findIndex(m => m.uid === USER.uid);
+        if (j >= 0) cloud.membros[j] = reg; else cloud.membros.push(reg);
+        await sb.from('school_data').upsert({ school_id: USER.schoolId, payload: JSON.stringify(cloud) }, { onConflict: 'school_id' });
+      }
+    } catch(e) {}
+  }
 }
 function iniciarPresenca() {
   if (_presencaTimer) clearInterval(_presencaTimer);
@@ -1685,11 +1734,51 @@ function iniciarPresenca() {
   }, 60000);
 }
 
+/* Sincronização automática: puxa a versão mais nova da nuvem a cada 20s,
+   mantendo todos os aparelhos atualizados. Só atualiza quando NÃO há nada
+   pendente para salvar e nenhuma janela de edição aberta (para nunca perder algo local). */
+function iniciarSync() {
+  if (_pullTimer) clearInterval(_pullTimer);
+  _pullTimer = setInterval(async () => {
+    if (_saving || _dirtyCloud || _modalDirty) return;      // há algo local não salvo — não mexe
+    if (document.querySelector('.modal-overlay.open')) return;            // usuário editando num modal
+    if (activePage === 'frequencia' || activePage === 'configuracoes') return; // páginas que o usuário monta antes de salvar
+    if (!SB_OK || !sb || !USER?.schoolId) return;
+    try {
+      const { data, error } = await sb.from('school_data').select('payload').eq('school_id', USER.schoolId).single();
+      if (!error && data && data.payload) {
+        const fresh = mergeData(JSON.parse(data.payload));
+        // Compara ignorando dados voláteis (presença/preferências) para decidir se redesenha a tela
+        const semVolatil = d => { const c = {...d}; delete c.membros; delete c.uiPrefs; return JSON.stringify(c); };
+        const mudou = semVolatil(fresh) !== semVolatil(DATA);
+        DATA = fresh;                                    // sempre mantém os dados fresquinhos
+        LS.s('data_'+(USER.schoolId||USER.uid), DATA);
+        _syncErro = false;                               // conseguiu ler: limpa erro antigo (não trava mais)
+        if (mudou && !document.querySelector('.modal-overlay.open')) renderPage(activePage);
+      }
+    } catch(e) {}
+  }, 15000);
+}
+
+/* Salva imediatamente ao sair/trocar de aba (sem esperar o atraso de 0,5s),
+   para nunca perder a última alteração ao fechar. */
+async function salvarAgora() {
+  if (!_dirtyCloud) return;                       // nada pendente
+  if (!SB_OK || !sb || !USER || !USER.schoolId) return;
+  clearTimeout(_saveTimer);
+  try {
+    await sb.from('school_data').upsert({ school_id: USER.schoolId, payload: JSON.stringify(DATA) }, { onConflict: 'school_id' });
+    _syncErro = false; _dirtyCloud = false;
+  } catch(e) {}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') salvarAgora(); });
+window.addEventListener('pagehide', () => { salvarAgora(); });
+
 async function persist() {
   const key = 'data_'+(USER.schoolId||USER.uid);
   LS.s(key, DATA);
   if (!SB_OK || !sb || !USER.schoolId) return;
-  _saving = true;
+  _saving = true; _dirtyCloud = true;
   clearTimeout(_saveTimer);
   syncStatus('Salvando…','saving');
   _saveTimer = setTimeout(async () => {
@@ -1697,7 +1786,7 @@ async function persist() {
       const payload = JSON.stringify(DATA);
       const { error } = await sb.from('school_data').upsert({ school_id: USER.schoolId, payload }, { onConflict: 'school_id' });
       if (error) throw error;
-      _syncErro = false;
+      _syncErro = false; _dirtyCloud = false;
       syncStatus('Salvo','ok');
       setTimeout(()=>{ if(!_syncErro) syncStatus('Online',''); },2000);
     } catch(e) {
@@ -1927,10 +2016,77 @@ function renderDash(){
     .join('')||emptyHTML('<svg class="ei" aria-hidden="true" viewBox="0 0 24 24" fill="#E5A93D"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.7V17c0 .6-.5 1-.97 1.2C7.85 18.8 7 20.2 7 22M14 14.7V17c0 .6.5 1 .97 1.2C16.15 18.8 17 20.2 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>','Nenhum aluno ainda');
   buildCharts();
 }
+let _chartTipo = 'bar';
+function setChartTipo(t){ _chartTipo=t; document.querySelectorAll('.ct-btn').forEach(b=>b.classList.toggle('active',b.dataset.tipo===t)); buildCharts(); }
+function paletaCor(i){ const p=['#3056D3','#C9953A','#15803D','#DC2626','#7C3AED','#0EA5E9','#DB2777','#EA580C','#0D9488','#9333EA']; return p[i%p.length]; }
+function dadosMetrica(m){
+  if(m==='estrelas-turma'){
+    const t=DATA.turmas;
+    return { titulo:'Estrelas por turma', labels:t.map(x=>x.nome),
+      valores:t.map(x=>DATA.alunos.filter(a=>a.turmaId===x.id).reduce((s,a)=>s+(a.estrelas||0),0)),
+      cores:t.map((_,i)=>paletaCor(i)), sufixo:'' };
+  }
+  if(m==='freq-turma'){
+    const t=DATA.turmas;
+    return { titulo:'Frequência por turma (%)', labels:t.map(x=>x.nome),
+      valores:t.map(x=>{const al=DATA.alunos.filter(a=>a.turmaId===x.id);const p=al.reduce((s,a)=>s+(a.presencas||0),0);const f=al.reduce((s,a)=>s+(a.faltas||0),0);const tot=p+f;return tot?Math.round(p/tot*100):0;}),
+      cores:t.map((_,i)=>paletaCor(i)), sufixo:'%' };
+  }
+  if(m==='top-alunos'){
+    const top=[...DATA.alunos].sort((a,b)=>(b.estrelas||0)-(a.estrelas||0)).slice(0,8);
+    return { titulo:'Top alunos (estrelas)', labels:top.map(a=>a.nome),
+      valores:top.map(a=>a.estrelas||0), cores:top.map((_,i)=>paletaCor(i)), sufixo:'' };
+  }
+  const g=DATA.grupos;
+  return { titulo:'Estrelas por grupo', labels:g.map(x=>x.nome),
+    valores:g.map(x=>DATA.alunos.filter(a=>a.grupoId===x.id).reduce((s,a)=>s+(a.estrelas||0),0)),
+    cores:g.map(x=>x.cor||'#C9953A'), sufixo:'' };
+}
 function buildCharts(){
-  Chart.defaults.color='#8A8680'; Chart.defaults.borderColor='#E8E5DF';
-  const c1=gi('cGr'); if(c1){if(charts.gr)charts.gr.destroy(); charts.gr=new Chart(c1,{type:'bar',data:{labels:DATA.grupos.map(g=>g.nome),datasets:[{data:DATA.grupos.map(g=>DATA.alunos.filter(a=>a.grupoId===g.id).reduce((s,a)=>s+(a.estrelas||0),0)),backgroundColor:DATA.grupos.map(g=>(g.cor||'#C9953A')+'99'),borderColor:DATA.grupos.map(g=>g.cor||'#C9953A'),borderWidth:2,borderRadius:6}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:'#F1EEE8'}}}}});}
-  const c2=gi('cFq'); if(c2){if(charts.fq)charts.fq.destroy(); const p=DATA.alunos.reduce((s,a)=>s+(a.presencas||0),0),f=DATA.alunos.reduce((s,a)=>s+(a.faltas||0),0); charts.fq=new Chart(c2,{type:'doughnut',data:{labels:['Presenças','Faltas'],datasets:[{data:[p||1,f],backgroundColor:['#1B7B4A','#C0392B'],borderWidth:0}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},cutout:'70%'}});}
+  if(typeof Chart==='undefined') return;
+  Chart.defaults.font.family="'Manrope',sans-serif";
+  const metrica = gv('chartMetrica')||'estrelas-grupo';
+  const d = dadosMetrica(metrica);
+  const tit=gi('chartTitulo'); if(tit) tit.textContent=d.titulo;
+  const c1=gi('cGr');
+  if(c1){
+    if(charts.gr) charts.gr.destroy();
+    const isPie=_chartTipo==='pie', isLine=_chartTipo==='line';
+    const ds = isLine
+      ? [{ label:d.titulo, data:d.valores, borderColor:'#3056D3', backgroundColor:'rgba(48,86,211,.12)', borderWidth:3, fill:true, tension:.38, pointBackgroundColor:'#3056D3', pointRadius:5, pointHoverRadius:7 }]
+      : [{ label:d.titulo, data:d.valores, backgroundColor: d.cores.map(c=>isPie?c:c+'CC'), borderColor:d.cores, borderWidth:2, borderRadius:isPie?0:8, hoverOffset:isPie?10:0 }];
+    charts.gr=new Chart(c1,{
+      type:_chartTipo,
+      data:{ labels:d.labels, datasets:ds },
+      options:{
+        responsive:true, maintainAspectRatio:true,
+        plugins:{
+          legend:{ display:isPie, position:'bottom', labels:{ boxWidth:12, boxHeight:12, padding:14, font:{size:12} } },
+          tooltip:{ backgroundColor:'rgba(17,24,39,.92)', padding:10, cornerRadius:8, titleFont:{size:13}, bodyFont:{size:13},
+            callbacks:{ label:ctx=>{ const v=(ctx.parsed && ctx.parsed.y!==undefined)?ctx.parsed.y:ctx.parsed; return ` ${v}${d.sufixo}`; } } }
+        },
+        scales: isPie ? {} : {
+          x:{ grid:{display:false}, ticks:{font:{size:11}} },
+          y:{ beginAtZero:true, grid:{color:'rgba(120,130,150,.12)'}, ticks:{font:{size:11},callback:v=>v+d.sufixo}, suggestedMax: d.sufixo==='%'?100:undefined }
+        },
+        animation:{ duration:650, easing:'easeOutQuart' }
+      }
+    });
+  }
+  const c2=gi('cFq');
+  if(c2){
+    if(charts.fq) charts.fq.destroy();
+    const p=DATA.alunos.reduce((s,a)=>s+(a.presencas||0),0), f=DATA.alunos.reduce((s,a)=>s+(a.faltas||0),0);
+    charts.fq=new Chart(c2,{
+      type:'doughnut',
+      data:{ labels:['Presenças','Faltas'], datasets:[{ data:[p||(f?0:1),f], backgroundColor:['#15803D','#DC2626'], borderWidth:2, borderColor:'#fff', hoverOffset:8 }] },
+      options:{ responsive:true, maintainAspectRatio:true, cutout:'68%',
+        plugins:{ legend:{position:'bottom', labels:{boxWidth:12,boxHeight:12,padding:14,font:{size:12}}},
+          tooltip:{ backgroundColor:'rgba(17,24,39,.92)', padding:10, cornerRadius:8,
+            callbacks:{ label:ctx=>{ const tot=(p+f)||1; return ` ${ctx.label}: ${ctx.parsed} (${Math.round(ctx.parsed/tot*100)}%)`; } } } },
+        animation:{ duration:650, easing:'easeOutQuart' } }
+    });
+  }
 }
 
 /* ════ TURMAS ════ */
